@@ -56,7 +56,7 @@ export const MEMORY_TOOLS = {
 
   recall_memories: {
     name: 'recall_memories' as ToolName,
-    description: 'Recall memories using various strategies',
+    description: 'Recall memories using various strategies including content search',
     inputSchema: {
       type: 'object',
       properties: {
@@ -68,7 +68,7 @@ export const MEMORY_TOOLS = {
         strategy: {
           type: 'string',
           description: 'How to traverse and select memories',
-          enum: ['recent', 'related', 'path', 'tag'],
+          enum: ['recent', 'related', 'path', 'tag', 'content'],
         },
         startNodeId: {
           type: 'string',
@@ -101,6 +101,38 @@ export const MEMORY_TOOLS = {
         after: {
           type: 'string',
           description: 'Optional timestamp lower bound',
+        },
+        search: {
+          type: 'object',
+          description: 'Content search options',
+          properties: {
+            keywords: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Keywords to search for in memory content',
+            },
+            fuzzyMatch: {
+              type: 'boolean',
+              description: 'Enable fuzzy matching for keywords',
+            },
+            regex: {
+              type: 'string',
+              description: 'Regular expression pattern for content matching',
+            },
+            caseSensitive: {
+              type: 'boolean',
+              description: 'Whether to perform case-sensitive matching',
+            },
+          },
+        },
+        combinedStrategy: {
+          type: 'boolean',
+          description: 'Whether to combine results from multiple search criteria',
+        },
+        sortBy: {
+          type: 'string',
+          enum: ['relevance', 'date', 'strength'],
+          description: 'How to sort the results',
         },
       },
       required: ['maxNodes', 'strategy'],

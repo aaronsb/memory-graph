@@ -10,7 +10,8 @@ import {
   EditMemoryInput,
   RecallResult,
   RecallStrategy,
-  Relationship
+  Relationship,
+  MatchDetails
 } from '../types/graph.js';
 
 export class MemoryGraph {
@@ -109,19 +110,48 @@ export class MemoryGraph {
       candidates = candidates.filter(node => node.timestamp > input.after!);
     }
 
-    switch (input.strategy) {
-      case 'recent':
-        results = this.getRecentMemories(candidates, input);
-        break;
-      case 'related':
-        results = await this.getRelatedMemories(candidates, input);
-        break;
-      case 'path':
-        results = this.getPathMemories(candidates, input);
-        break;
-      case 'tag':
-        results = this.getTagMemories(candidates, input);
-        break;
+    if (input.combinedStrategy) {
+      // Combine results from multiple strategies
+      const strategyResults: RecallResult[][] = [];
+
+      if (input.strategy === 'content' || input.search) {
+        strategyResults.push(this.searchContent(candidates, input));
+      }
+      if (input.path) {
+        strategyResults.push(this.getPathMemories(candidates, input));
+      }
+      if (input.tags?.length) {
+        strategyResults.push(this.getTagMemories(candidates, input));
+      }
+      if (input.startNodeId) {
+        strategyResults.push(await this.getRelatedMemories(candidates, input));
+      }
+
+      results = this.combineSearchResults(strategyResults, input);
+    } else {
+      // Single strategy
+      switch (input.strategy) {
+        case 'recent':
+          results = this.getRecentMemories(candidates, input);
+          break;
+        case 'related':
+          results = await this.getRelatedMemories(candidates, input);
+          break;
+        case 'path':
+          results = this.getPathMemories(candidates, input);
+          break;
+        case 'tag':
+          results = this.getTagMemories(candidates, input);
+          break;
+        case 'content':
+          results = this.searchContent(candidates, input);
+          break;
+      }
+    }
+
+    // Sort results
+    if (input.sortBy) {
+      results = this.sortResults(results, input.sortBy);
     }
 
     return results.slice(0, input.maxNodes);
@@ -205,6 +235,139 @@ export class MemoryGraph {
         edges: this.getNodeEdges(node.id),
         score: 1
       }));
+  }
+
+  private searchContent(candidates: MemoryNode[], input: RecallMemoriesInput): RecallResult[] {
+    if (!input.search?.keywords?.length && !input.search?.regex) {
+      return [];
+    }
+
+    const results: RecallResult[] = [];
+    const regex = input.search.regex 
+      ? new RegExp(input.search.regex, input.search.caseSensitive ? '' : 'i')
+      : null;
+
+    for (const node of candidates) {
+      const matchDetails: MatchDetails = {
+        matches: [],
+        positions: [],
+        relevance: 0
+      };
+
+      if (regex) {
+        // Regex search
+        const matches = [...node.content.matchAll(regex)];
+        if (matches.length > 0) {
+          matchDetails.matches = matches.map(m => m[0]);
+          matchDetails.positions = matches.map(m => m.index!);
+          matchDetails.relevance = matches.length / node.content.length;
+        }
+      } else if (input.search?.keywords) {
+        // Keyword search
+        for (const keyword of input.search.keywords) {
+          const searchTerm = input.search.caseSensitive ? keyword : keyword.toLowerCase();
+          const content = input.search.caseSensitive ? node.content : node.content.toLowerCase();
+          
+          if (input.search.fuzzyMatch) {
+            // Simple fuzzy matching using Levenshtein distance
+            const matches = this.findFuzzyMatches(content, searchTerm);
+            matchDetails.matches.push(...matches.terms);
+            matchDetails.positions.push(...matches.positions);
+            matchDetails.relevance += matches.score;
+          } else {
+            let pos = -1;
+            while ((pos = content.indexOf(searchTerm, pos + 1)) !== -1) {
+              matchDetails.matches.push(node.content.slice(pos, pos + searchTerm.length));
+              matchDetails.positions.push(pos);
+              matchDetails.relevance += 1;
+            }
+          }
+        }
+
+        if (matchDetails.matches.length > 0) {
+          matchDetails.relevance /= node.content.length;
+        }
+      }
+
+      if (matchDetails.matches.length > 0) {
+        results.push({
+          node,
+          edges: this.getNodeEdges(node.id),
+          score: matchDetails.relevance,
+          matchDetails
+        });
+      }
+    }
+
+    return results.sort((a, b) => b.score - a.score);
+  }
+
+  private findFuzzyMatches(text: string, term: string): { terms: string[], positions: number[], score: number } {
+    const result = { terms: [] as string[], positions: [] as number[], score: 0 };
+    const maxDistance = Math.floor(term.length * 0.3); // Allow 30% difference
+
+    for (let i = 0; i < text.length - term.length + 1; i++) {
+      const candidate = text.slice(i, i + term.length);
+      const distance = this.levenshteinDistance(term, candidate);
+      
+      if (distance <= maxDistance) {
+        result.terms.push(candidate);
+        result.positions.push(i);
+        result.score += 1 - (distance / term.length);
+      }
+    }
+
+    return result;
+  }
+
+  private levenshteinDistance(a: string, b: string): number {
+    const matrix = Array(b.length + 1).fill(null).map(() => Array(a.length + 1).fill(null));
+
+    for (let i = 0; i <= a.length; i++) matrix[0][i] = i;
+    for (let j = 0; j <= b.length; j++) matrix[j][0] = j;
+
+    for (let j = 1; j <= b.length; j++) {
+      for (let i = 1; i <= a.length; i++) {
+        const substitutionCost = a[i - 1] === b[j - 1] ? 0 : 1;
+        matrix[j][i] = Math.min(
+          matrix[j][i - 1] + 1,
+          matrix[j - 1][i] + 1,
+          matrix[j - 1][i - 1] + substitutionCost
+        );
+      }
+    }
+
+    return matrix[b.length][a.length];
+  }
+
+  private combineSearchResults(results: RecallResult[][], input: RecallMemoriesInput): RecallResult[] {
+    const nodeMap = new Map<string, RecallResult>();
+    
+    for (const resultSet of results) {
+      for (const result of resultSet) {
+        const existing = nodeMap.get(result.node.id);
+        if (!existing || result.score > existing.score) {
+          nodeMap.set(result.node.id, result);
+        }
+      }
+    }
+
+    return Array.from(nodeMap.values());
+  }
+
+  private sortResults(results: RecallResult[], sortBy: 'relevance' | 'date' | 'strength'): RecallResult[] {
+    switch (sortBy) {
+      case 'relevance':
+        return results.sort((a, b) => b.score - a.score);
+      case 'date':
+        return results.sort((a, b) => b.node.timestamp.localeCompare(a.node.timestamp));
+      case 'strength':
+        return results.sort((a, b) => {
+          const aStrength = Math.max(...a.edges.map(e => e.strength));
+          const bStrength = Math.max(...b.edges.map(e => e.strength));
+          return bStrength - aStrength;
+        });
+    }
   }
 
   private getNodeEdges(nodeId: string): GraphEdge[] {

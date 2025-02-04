@@ -33,7 +33,20 @@ export interface StoreMemoryInput {
   };
 }
 
-export type RecallStrategy = 'recent' | 'related' | 'path' | 'tag';
+export type RecallStrategy = 'recent' | 'related' | 'path' | 'tag' | 'content';
+
+export interface SearchOptions {
+  keywords?: string[];
+  fuzzyMatch?: boolean;
+  regex?: string;
+  caseSensitive?: boolean;
+}
+
+export interface MatchDetails {
+  matches: string[];
+  positions: number[];
+  relevance: number;
+}
 
 export interface RecallMemoriesInput {
   maxNodes: number;
@@ -45,6 +58,9 @@ export interface RecallMemoriesInput {
   minStrength?: number;
   before?: string;
   after?: string;
+  search?: SearchOptions;
+  combinedStrategy?: boolean;
+  sortBy?: 'relevance' | 'date' | 'strength';
 }
 
 export interface EditMemoryInput {
@@ -64,4 +80,5 @@ export interface RecallResult {
   node: MemoryNode;
   edges: GraphEdge[];
   score: number;
+  matchDetails?: MatchDetails;
 }
