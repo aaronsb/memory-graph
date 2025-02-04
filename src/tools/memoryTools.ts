@@ -3,7 +3,8 @@ import {
   McpError,
 } from '@modelcontextprotocol/sdk/types.js';
 import { MemoryGraph } from '../graph/MemoryGraph.js';
-import { StoreMemoryInput, RecallMemoriesInput, ForgetMemoryInput, EditMemoryInput } from '../types/graph.js';
+import { StoreMemoryInput, RecallMemoriesInput, ForgetMemoryInput, EditMemoryInput, GenerateMermaidGraphInput } from '../types/graph.js';
+import { MermaidGenerator } from '../graph/MermaidGenerator.js';
 import { ToolRequest, ToolResponse, ToolName } from '../types/mcp.js';
 
 export const MEMORY_TOOLS = {
@@ -200,6 +201,45 @@ export const MEMORY_TOOLS = {
       required: ['id'],
     },
   },
+
+  generate_mermaid_graph: {
+    name: 'generate_mermaid_graph' as ToolName,
+    description: 'Generate a Mermaid graph visualization starting from any memory node',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        startNodeId: {
+          type: 'string',
+          description: 'ID of the memory node to start the graph from',
+        },
+        maxDepth: {
+          type: 'number',
+          description: 'Maximum depth of relationships to traverse (1-5)',
+          minimum: 1,
+          maximum: 5,
+          default: 2,
+        },
+        direction: {
+          type: 'string',
+          enum: ['TB', 'BT', 'LR', 'RL'],
+          description: 'Graph direction (top-bottom, bottom-top, left-right, right-left)',
+          default: 'LR',
+        },
+        relationshipTypes: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Optional filter for specific relationship types',
+        },
+        minStrength: {
+          type: 'number',
+          description: 'Minimum relationship strength to include (0-1)',
+          minimum: 0,
+          maximum: 1,
+        },
+      },
+      required: ['startNodeId'],
+    },
+  },
 };
 
 export class MemoryTools {
@@ -221,6 +261,8 @@ export class MemoryTools {
         return this.handleForgetMemory(args as ForgetMemoryInput);
       case 'edit_memory':
         return this.handleEditMemory(args as EditMemoryInput);
+      case 'generate_mermaid_graph':
+        return this.handleGenerateMermaidGraph(args as GenerateMermaidGraphInput);
       default:
         throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
     }
@@ -276,6 +318,18 @@ export class MemoryTools {
         };
       }
       throw new McpError(ErrorCode.InternalError, `Failed to edit memory: ${error}`);
+    }
+  }
+
+  private handleGenerateMermaidGraph(args: GenerateMermaidGraphInput): ToolResponse {
+    try {
+      const generator = new MermaidGenerator(this.graph['nodes'], this.graph['edges']);
+      const mermaid = generator.generateGraph(args);
+      return {
+        content: [{ type: 'text', text: mermaid }],
+      };
+    } catch (error) {
+      throw new McpError(ErrorCode.InternalError, `Failed to generate Mermaid graph: ${error}`);
     }
   }
 }

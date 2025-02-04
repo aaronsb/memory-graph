@@ -76,6 +76,14 @@ export interface ForgetMemoryInput {
   cascade?: boolean;
 }
 
+export interface GenerateMermaidGraphInput {
+  startNodeId: string;
+  maxDepth?: number;
+  direction?: 'TB' | 'BT' | 'LR' | 'RL';
+  relationshipTypes?: string[];
+  minStrength?: number;
+}
+
 export interface RecallResult {
   node: MemoryNode;
   edges: GraphEdge[];
