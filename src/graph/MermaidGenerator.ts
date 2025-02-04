@@ -1,7 +1,8 @@
 import {
   MemoryNode,
   GraphEdge,
-  GenerateMermaidGraphInput
+  GenerateMermaidGraphInput,
+  MermaidContentFormat
 } from '../types/graph.js';
 
 export class MermaidGenerator {
@@ -32,7 +33,8 @@ export class MermaidGenerator {
     return this.generateMermaidSyntax(
       Array.from(visitedNodes).map(id => this.nodes.get(id)!),
       graphEdges,
-      input.direction || 'LR'
+      input.direction || 'LR',
+      input.contentFormat
     );
   }
 
@@ -79,13 +81,13 @@ export class MermaidGenerator {
     }
   }
 
-  private generateMermaidSyntax(nodes: MemoryNode[], edges: GraphEdge[], direction: string): string {
+  private generateMermaidSyntax(nodes: MemoryNode[], edges: GraphEdge[], direction: string, contentFormat?: MermaidContentFormat): string {
     const lines: string[] = [`graph ${direction}`];
     const addedNodes = new Set<string>();
 
     // Add nodes from the visited set
     for (const node of nodes) {
-      const content = this.truncateContent(node.content);
+      const content = this.formatNodeContent(node, contentFormat);
       lines.push(`    ${node.id}["${this.escapeQuotes(content)}"]`);
       addedNodes.add(node.id);
     }
@@ -95,7 +97,7 @@ export class MermaidGenerator {
       for (const id of [edge.source, edge.target]) {
         if (!addedNodes.has(id) && this.nodes.has(id)) {
           const node = this.nodes.get(id)!;
-          const content = this.truncateContent(node.content);
+          const content = this.formatNodeContent(node, contentFormat);
           lines.push(`    ${id}["${this.escapeQuotes(content)}"]`);
           addedNodes.add(id);
         }
@@ -112,11 +114,55 @@ export class MermaidGenerator {
     return lines.join('\n');
   }
 
-  private truncateContent(content: string, maxLength = 50): string {
+  private formatNodeContent(node: MemoryNode, format?: MermaidContentFormat): string {
+    let content = node.content;
+
+    // Add optional metadata
+    const parts: string[] = [];
+    
+    if (format?.includeId) {
+      parts.push(`[${node.id}]`);
+    }
+    
+    parts.push(this.truncateContent(content, format?.maxLength, format?.truncationSuffix));
+    
+    if (format?.includeTimestamp) {
+      // Parse the UTC timestamp
+      const utcDate = new Date(node.timestamp);
+      
+      // Create a new date object for CST (UTC-6)
+      const cstDate = new Date(utcDate);
+      cstDate.setUTCHours(utcDate.getUTCHours() - 6);
+      
+      // Set to noon CST
+      cstDate.setHours(12, 0, 0);
+      
+      // Format date parts individually to avoid the comma
+      const dateFormatter = new Intl.DateTimeFormat('en-US', {
+        year: 'numeric',
+        month: 'numeric',
+        day: 'numeric',
+      });
+      const timeFormatter = new Intl.DateTimeFormat('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true,
+      });
+      
+      const dateStr = dateFormatter.format(cstDate);
+      const timeStr = timeFormatter.format(cstDate);
+      parts.push(`(${dateStr} ${timeStr})`);
+    }
+
+    return parts.join(' ');
+  }
+
+  private truncateContent(content: string, maxLength = 50, truncationSuffix = '...'): string {
     if (content.length <= maxLength) {
       return content;
     }
-    return content.substring(0, maxLength - 3) + '...';
+    return content.substring(0, maxLength - truncationSuffix.length) + truncationSuffix;
   }
 
   private escapeQuotes(text: string): string {
