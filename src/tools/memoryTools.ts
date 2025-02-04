@@ -204,7 +204,33 @@ export const MEMORY_TOOLS = {
 
   generate_mermaid_graph: {
     name: 'generate_mermaid_graph' as ToolName,
-    description: 'Generate a Mermaid graph visualization starting from any memory node',
+    description: `Generate a Mermaid graph visualization of memory relationships.
+    
+Prerequisites:
+- Use recall_memories first to get valid memory IDs. Common strategies:
+  * recent: Get latest memories
+  * path: Get memories from a specific path
+  * tag: Get memories with specific tags
+  * related: Get memories connected to a starting point
+  * content: Search by content/keywords
+
+Best Practices:
+1. Choose direction based on relationship semantics:
+   * LR/RL: For showing flow/progression
+   * TB/BT: For hierarchical relationships
+2. Adjust maxDepth (1-5) to control visualization scope
+3. Use minStrength (0-1) to filter relationship quality
+4. Filter relationshipTypes for focused views:
+   * relates_to: General connections
+   * supports: Reinforcing relationships
+   * synthesizes: Combined insights
+   * refines: Clarifications/improvements
+
+The generated graph shows:
+- Nodes: Individual memories (content truncated for readability)
+- Edges: Labeled relationships with types
+- Direction: Specified flow of relationships
+- Strength: Only relationships meeting minStrength threshold`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -235,6 +261,29 @@ export const MEMORY_TOOLS = {
           description: 'Minimum relationship strength to include (0-1)',
           minimum: 0,
           maximum: 1,
+        },
+        contentFormat: {
+          type: 'object',
+          description: 'Optional content formatting options',
+          properties: {
+            maxLength: {
+              type: 'number',
+              description: 'Maximum length for node content (default: 50)',
+              minimum: 1
+            },
+            truncationSuffix: {
+              type: 'string',
+              description: 'String to append when content is truncated (default: "...")'
+            },
+            includeTimestamp: {
+              type: 'boolean',
+              description: 'Include node timestamps in display'
+            },
+            includeId: {
+              type: 'boolean',
+              description: 'Include node IDs in display'
+            }
+          }
         },
       },
       required: ['startNodeId'],

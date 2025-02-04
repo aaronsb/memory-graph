@@ -76,12 +76,20 @@ export interface ForgetMemoryInput {
   cascade?: boolean;
 }
 
+export interface MermaidContentFormat {
+  maxLength?: number;  // Override default 50 char limit
+  truncationSuffix?: string; // Override default "..."
+  includeTimestamp?: boolean; // Option to show node timestamps
+  includeId?: boolean; // Option to show node IDs
+}
+
 export interface GenerateMermaidGraphInput {
   startNodeId: string;
   maxDepth?: number;
   direction?: 'TB' | 'BT' | 'LR' | 'RL';
   relationshipTypes?: string[];
   minStrength?: number;
+  contentFormat?: MermaidContentFormat;
 }
 
 export interface RecallResult {

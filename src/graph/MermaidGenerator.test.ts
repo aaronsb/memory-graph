@@ -146,4 +146,59 @@ describe('MermaidGenerator', () => {
 
     expect(result).toBe('graph LR');
   });
+
+  it('applies content formatting options', () => {
+    const result = generator.generateGraph({
+      startNodeId: 'node1',
+      contentFormat: {
+        maxLength: 10,
+        truncationSuffix: '***',
+        includeId: true,
+        includeTimestamp: true
+      }
+    });
+
+    // Extract lines from result
+    const lines = result.split('\n').map(line => line.trim());
+    
+    // Verify node content (ignoring indentation)
+    const node1Line = 'node1["[node1] First m*** (12/31/2023 12:00:00 PM)"]';
+    const node2Line = 'node2["[node2] Second *** (1/1/2024 12:00:00 PM)"]';
+    
+    // Debug output
+    console.log('Expected node1Line:', node1Line);
+    console.log('Expected node2Line:', node2Line);
+    console.log('Actual lines:', lines);
+    
+    // Create normalized versions of the expected lines
+    const expectedNode1 = 'node1["[node1] First m*** (12/31/2023 12:00:00 PM)"]';
+    const expectedNode2 = 'node2["[node2] Second *** (1/1/2024 12:00:00 PM)"]';
+    
+    // Debug output
+    console.log('Testing exact line matches:');
+    lines.forEach(line => {
+      console.log('Line:', JSON.stringify(line));
+      console.log('Matches node1:', line === expectedNode1);
+      console.log('Matches node2:', line === expectedNode2);
+      if (line !== expectedNode1 && line.includes('node1')) {
+        console.log('node1 diff - expected:', expectedNode1.split('').map(c => c.charCodeAt(0)));
+        console.log('node1 diff - actual:', line.split('').map(c => c.charCodeAt(0)));
+      }
+      if (line !== expectedNode2 && line.includes('node2')) {
+        console.log('node2 diff - expected:', expectedNode2.split('').map(c => c.charCodeAt(0)));
+        console.log('node2 diff - actual:', line.split('').map(c => c.charCodeAt(0)));
+      }
+    });
+    
+    // Check for exact matches
+    const hasNode1 = lines.includes(expectedNode1);
+    const hasNode2 = lines.includes(expectedNode2);
+    
+    expect(hasNode1).toBe(true);
+    expect(hasNode2).toBe(true);
+
+    // Verify edge and structure
+    expect(result).toContain('node1 -->|references| node2');
+    expect(result).toMatch(/graph LR/);
+  });
 });

@@ -1,22 +1,25 @@
 # Active Context
 
 ## Current Work
-- Initial setup of the memory graph MCP server project
-- Creating Memory Bank documentation
-- Planning implementation based on reference repository
+- Enhancing Mermaid graph visualization capabilities
+- Adding content formatting controls to graph generation
+- Implementing and testing new features
 
 ## Recent Changes
-- Created project directory
-- Initialized Memory Bank documentation
-- Analyzed reference implementation at https://github.com/shaneholloman/mcp-knowledge-graph
+- Added MermaidContentFormat interface for customizable node content display
+- Enhanced MermaidGenerator to support:
+  - Custom content truncation length
+  - Custom truncation suffix
+  - Optional ID display
+  - Optional timestamp display
+- Added comprehensive tests for new formatting features
 
 ## Next Steps
-1. Create initial project structure
-2. Set up TypeScript configuration
-3. Implement core MCP server functionality:
-   - Server setup with MCP SDK
-   - Knowledge graph data structure
-   - Memory storage and retrieval tools
-   - Customizable memory path support
-4. Add tests and documentation
-5. Configure for local development
+1. Test and verify all graph visualization features
+2. Document new content formatting capabilities
+3. Consider additional enhancements:
+   - Custom timestamp formatting
+   - Node styling options
+   - Edge formatting controls
+4. Update API documentation
+5. Review and refine implementation

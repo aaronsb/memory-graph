@@ -37,3 +37,28 @@
    - Implements MCP tool interface
    - Provides memory management operations
    - Handles input validation and error handling
+
+4. Visualization Pattern
+   - MermaidGenerator for graph visualization
+   - Configurable node content formatting
+   - Flexible graph traversal and filtering
+   - Customizable visual representation
+
+## Visualization Architecture
+1. Content Formatting
+   - MermaidContentFormat interface for configuration
+   - Customizable content truncation
+   - Optional metadata display (IDs, timestamps)
+   - Extensible formatting options
+
+2. Graph Generation
+   - BFS traversal with depth control
+   - Relationship type filtering
+   - Strength-based edge filtering
+   - Configurable graph direction
+
+3. Node Representation
+   - Structured node content formatting
+   - Metadata integration
+   - Escaped special characters
+   - Consistent indentation and layout
