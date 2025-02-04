@@ -67,10 +67,19 @@ This initialization behavior ensures that:
    - Store new information in the memory graph
    - Required: content
    - Optional: path, tags, relationships (with strength 0-1)
+   - Dreaming Guidelines:
+     * Create at most 1-2 new synthesized memories per session
+     * Focus on clear, significant patterns across multiple memories
+     * Avoid abstract memories that don't add concrete value
 
 2. `recall_memories`
    - Retrieve memories using various strategies
    - Required: maxNodes, strategy
+   - Dreaming Guidelines:
+     * Limit initial recall to 10-15 most relevant memories
+     * Use combinedStrategy to gather related memories
+     * Stay focused on the core topic being dreamed about
+     * Avoid going too broad or deep in connections
    - Strategies:
      * recent: Get latest memories
      * related: Follow relationship paths from a starting point
@@ -100,20 +109,53 @@ This initialization behavior ensures that:
    - Optional: content, relationships (with strength 0-1)
    - Updates only provided fields
    - Replaces all relationships when provided
+   - Dreaming Guidelines:
+     * Limit edits to 2-3 memories per session
+     * Focus on obvious consolidation opportunities
+     * Don't over-edit or force connections
+     * Allow memories to retain unique perspectives
 
 4. `forget_memory`
    - Remove a memory from the graph
    - Required: id
    - Optional: cascade (remove connected memories)
+   - Dreaming Guidelines:
+     * Use at most once per session
+     * Only remove 100% redundant memories after consolidation
+     * When in doubt, preserve the memory
+     * Never remove memories just because they seem less important
 
 5. `generate_mermaid_graph`
    - Generate a Mermaid flowchart visualization of memory relationships
+   - Prerequisites:
+     * Use recall_memories first to get valid memory IDs using strategies:
+       - recent: Get latest memories
+       - path: Get memories from a specific path
+       - tag: Get memories with specific tags
+       - related: Get memories connected to a starting point
+       - content: Search by content/keywords
    - Required: startNodeId
    - Optional:
      * maxDepth: Maximum depth of relationships to traverse (1-5, default: 2)
      * direction: Graph direction ('TB', 'BT', 'LR', 'RL', default: 'LR')
      * relationshipTypes: Filter specific relationship types
      * minStrength: Minimum relationship strength to include (0-1)
+     * contentFormat:
+       - maxLength: Maximum length for node content (default: 50)
+       - truncationSuffix: String to append when truncated (default: "...")
+       - includeTimestamp: Include node timestamps in display
+       - includeId: Include node IDs in display
+   - Best Practices:
+     * Choose direction based on relationship semantics:
+       - LR/RL: For showing flow/progression
+       - TB/BT: For hierarchical relationships
+     * Adjust maxDepth (1-5) to control visualization scope
+     * Use minStrength (0-1) to filter relationship quality
+     * Filter relationshipTypes for focused views:
+       - relates_to: General connections
+       - supports: Reinforcing relationships
+       - synthesizes: Combined insights
+       - refines: Clarifications/improvements
    - Features:
      * Automatically truncates long content
      * Escapes special characters
