@@ -51,7 +51,8 @@ export class MemoryGraph {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
         throw error;
       }
-      // File doesn't exist yet - that's fine for first run
+      // Create empty memory file
+      await this.save();
     }
   }
 

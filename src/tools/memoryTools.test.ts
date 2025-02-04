@@ -15,7 +15,6 @@ describe('MemoryTools', () => {
     await fs.mkdir(testStoragePath, { recursive: true });
     graph = new MemoryGraph({ 
       storageDir: testStoragePath,
-      loadAllFiles: true,
       defaultPath: '/'
     });
     await graph.initialize();
@@ -44,57 +43,15 @@ describe('MemoryTools', () => {
       const memory = JSON.parse(response.content[0].text);
       expect(memory).toMatchObject({
         content: 'Test memory',
-        metadata: {
-          path: '/test',
-          tags: ['test'],
-        },
+        path: '/test',
+        tags: ['test']
       });
     });
   });
 
-  describe('retrieve_memory', () => {
-    it('should retrieve a stored memory', async () => {
-      // First store a memory
-      const storeRequest: ToolRequest = {
-        name: 'store_memory',
-        arguments: {
-          content: 'Memory to retrieve',
-        },
-      };
-      const storeResponse = await tools.handleToolCall(storeRequest);
-      const storedMemory = JSON.parse(storeResponse.content[0].text);
-
-      // Then retrieve it
-      const retrieveRequest: ToolRequest = {
-        name: 'retrieve_memory',
-        arguments: {
-          id: storedMemory.id,
-        },
-      };
-      const response = await tools.handleToolCall(retrieveRequest);
-      const retrievedMemory = JSON.parse(response.content[0].text);
-
-      expect(retrievedMemory).toMatchObject({
-        id: storedMemory.id,
-        content: 'Memory to retrieve',
-      });
-    });
-
-    it('should handle non-existent memory', async () => {
-      const request: ToolRequest = {
-        name: 'retrieve_memory',
-        arguments: {
-          id: 'non-existent',
-        },
-      };
-
-      await expect(tools.handleToolCall(request)).rejects.toThrow('Memory not found');
-    });
-  });
-
-  describe('query_memories', () => {
+  describe('recall_memories', () => {
     beforeEach(async () => {
-      // Set up test data
+      // Set up test data with delays to ensure distinct timestamps
       await tools.handleToolCall({
         name: 'store_memory',
         arguments: {
@@ -103,6 +60,8 @@ describe('MemoryTools', () => {
           tags: ['tag1'],
         },
       });
+      await new Promise(resolve => setTimeout(resolve, 10));
+      
       await tools.handleToolCall({
         name: 'store_memory',
         arguments: {
@@ -113,109 +72,88 @@ describe('MemoryTools', () => {
       });
     });
 
-    it('should query memories by path', async () => {
+    it('should recall recent memories', async () => {
       const request: ToolRequest = {
-        name: 'query_memories',
+        name: 'recall_memories',
         arguments: {
-          path: '/test',
+          maxNodes: 10,
+          strategy: 'recent'
         },
       };
 
       const response = await tools.handleToolCall(request);
       const results = JSON.parse(response.content[0].text);
       expect(results).toHaveLength(2);
-      expect(results.every((m: any) => m.metadata.path === '/test')).toBe(true);
-    });
-  });
-
-  describe('search_memories', () => {
-    beforeEach(async () => {
-      await tools.handleToolCall({
-        name: 'store_memory',
-        arguments: { content: 'Apple pie recipe' },
-      });
-      await tools.handleToolCall({
-        name: 'store_memory',
-        arguments: { content: 'Banana bread recipe' },
-      });
+      expect(results[0].node.content).toBe('Memory 2');
     });
 
-    it('should search memories and return results', async () => {
+    it('should recall memories by path', async () => {
       const request: ToolRequest = {
-        name: 'search_memories',
+        name: 'recall_memories',
         arguments: {
-          query: 'recipe',
-          limit: 5,
+          maxNodes: 10,
+          strategy: 'path',
+          path: '/test'
         },
       };
 
       const response = await tools.handleToolCall(request);
       const results = JSON.parse(response.content[0].text);
       expect(results).toHaveLength(2);
-      expect(results.every((r: any) => r.node.content.includes('recipe'))).toBe(true);
+      expect(results.every((r: any) => r.node.path === '/test')).toBe(true);
+    });
+
+    it('should recall memories by tags', async () => {
+      const request: ToolRequest = {
+        name: 'recall_memories',
+        arguments: {
+          maxNodes: 10,
+          strategy: 'tag',
+          tags: ['tag1']
+        },
+      };
+
+      const response = await tools.handleToolCall(request);
+      const results = JSON.parse(response.content[0].text);
+      expect(results).toHaveLength(1);
+      expect(results[0].node.tags).toContain('tag1');
     });
   });
 
-  describe('update_memory', () => {
-    it('should update an existing memory', async () => {
+  describe('forget_memory', () => {
+    it('should forget a memory', async () => {
       // First store a memory
       const storeResponse = await tools.handleToolCall({
         name: 'store_memory',
         arguments: {
-          content: 'Original content',
-          tags: ['original'],
+          content: 'Memory to forget',
         },
       });
       const storedMemory = JSON.parse(storeResponse.content[0].text);
 
-      // Then update it
-      const updateRequest: ToolRequest = {
-        name: 'update_memory',
-        arguments: {
-          id: storedMemory.id,
-          content: 'Updated content',
-          tags: ['updated'],
-        },
-      };
-
-      const response = await tools.handleToolCall(updateRequest);
-      const updatedMemory = JSON.parse(response.content[0].text);
-      expect(updatedMemory.content).toBe('Updated content');
-      expect(updatedMemory.metadata.tags).toEqual(['updated']);
-    });
-  });
-
-  describe('delete_memory', () => {
-    it('should delete an existing memory', async () => {
-      // First store a memory
-      const storeResponse = await tools.handleToolCall({
-        name: 'store_memory',
-        arguments: {
-          content: 'Memory to delete',
-        },
-      });
-      const storedMemory = JSON.parse(storeResponse.content[0].text);
-
-      // Then delete it
-      const deleteRequest: ToolRequest = {
-        name: 'delete_memory',
+      // Then forget it
+      const forgetRequest: ToolRequest = {
+        name: 'forget_memory',
         arguments: {
           id: storedMemory.id,
         },
       };
 
-      const response = await tools.handleToolCall(deleteRequest);
-      expect(response.content[0].text).toBe('Memory deleted successfully');
+      const response = await tools.handleToolCall(forgetRequest);
+      expect(response.content[0].text).toBe('Memory forgotten successfully');
 
-      // Verify it's deleted
-      const retrieveRequest: ToolRequest = {
-        name: 'retrieve_memory',
+      // Verify it's forgotten
+      const recallRequest: ToolRequest = {
+        name: 'recall_memories',
         arguments: {
-          id: storedMemory.id,
+          maxNodes: 10,
+          strategy: 'recent'
         },
       };
 
-      await expect(tools.handleToolCall(retrieveRequest)).rejects.toThrow('Memory not found');
+      const recallResponse = await tools.handleToolCall(recallRequest);
+      const results = JSON.parse(recallResponse.content[0].text);
+      expect(results.find((r: any) => r.node.id === storedMemory.id)).toBeUndefined();
     });
   });
 });

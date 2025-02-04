@@ -12,6 +12,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { MemoryGraph } from './graph/MemoryGraph.js';
 import { MEMORY_TOOLS, MemoryTools } from './tools/memoryTools.js';
+import { StoreMemoryInput, RecallMemoriesInput, ForgetMemoryInput } from './types/graph.js';
 import { ToolName, ToolRequest, ToolResponse } from './types/mcp.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -22,16 +23,12 @@ class MemoryGraphServer {
   private memoryTools: MemoryTools;
 
   constructor() {
-    // Initialize memory graph with configuration
+    // Initialize memory graph
     const storageDir = process.env.MEMORY_DIR || path.join(__dirname, '../data');
-    const memoryFiles = process.env.MEMORY_FILES ? process.env.MEMORY_FILES.split(',') : undefined;
-    const loadAllFiles = process.env.LOAD_ALL_FILES === 'true';
     
     this.memoryGraph = new MemoryGraph({
       storageDir,
-      memoryFiles,
-      loadAllFiles,
-      defaultPath: process.env.DEFAULT_PATH
+      defaultPath: process.env.DEFAULT_PATH || '/'
     });
     this.memoryTools = new MemoryTools(this.memoryGraph);
 
@@ -62,7 +59,7 @@ class MemoryGraphServer {
       try {
         const toolRequest: ToolRequest = {
           name: request.params.name as ToolName,
-          arguments: request.params.arguments || {},
+          arguments: (request.params.arguments || {}) as unknown as StoreMemoryInput | RecallMemoriesInput | ForgetMemoryInput,
         };
 
         const response = await this.memoryTools.handleToolCall(toolRequest);

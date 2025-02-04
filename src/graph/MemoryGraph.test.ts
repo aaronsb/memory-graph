@@ -129,16 +129,21 @@ describe('MemoryGraph', () => {
       await graph.initialize();
 
       // Set up test data
+      // Add small delays between stores to ensure distinct timestamps
       await graph.storeMemory({
         content: 'Memory 1',
         path: '/test',
         tags: ['tag1']
       });
+      await new Promise(resolve => setTimeout(resolve, 10));
+      
       await graph.storeMemory({
         content: 'Memory 2',
         path: '/test',
         tags: ['tag2']
       });
+      await new Promise(resolve => setTimeout(resolve, 10));
+      
       await graph.storeMemory({
         content: 'Memory 3',
         path: '/other',
