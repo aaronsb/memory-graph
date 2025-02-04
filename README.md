@@ -31,36 +31,62 @@ The server will start and listen for MCP requests on stdio.
 
 The server can be configured using environment variables:
 
-- `MEMORY_PATH`: Path to store the memory graph data (default: `./data`)
+- `MEMORY_DIR`: Directory to store memory files (default: `./data`)
+- `MEMORY_FILES`: Comma-separated list of specific memory files to use
+- `LOAD_ALL_FILES`: Set to 'true' to load all JSON files in the storage directory
+- `DEFAULT_PATH`: Default path for storing memories
+
+#### Memory File Initialization
+
+The server handles memory file initialization in three modes:
+
+1. **Specific Files Mode** (`MEMORY_FILES` set):
+   - Only uses explicitly configured memory files
+   - Throws error if none of the configured files exist
+   - Uses first existing file as active storage
+   - Prevents creation of new files when configured files don't exist
+
+2. **Load All Mode** (`LOAD_ALL_FILES=true`):
+   - Loads all JSON files in the storage directory
+   - Uses first existing file as active storage
+   - Creates new file only if directory is empty
+
+3. **Default Mode** (no specific configuration):
+   - Uses single memory.json file
+   - Creates new file if none exists
+
+This initialization behavior ensures that:
+- Existing memories are never overwritten
+- New files are only created when appropriate
+- Server fails fast if configured files are missing
 
 ### Available Tools
 
 1. `store_memory`
    - Store new information in the memory graph
    - Required: content
-   - Optional: path, tags, relationships
+   - Optional: path, tags, relationships (with strength 0-1)
 
-2. `retrieve_memory`
-   - Retrieve a specific memory by ID
+2. `recall_memories`
+   - Retrieve memories using various strategies
+   - Required: maxNodes, strategy
+   - Strategies:
+     * recent: Get latest memories
+     * related: Follow relationship paths from a starting point
+     * path: Filter by organizational path
+     * tag: Filter by memory tags
+   - Optional filters:
+     * startNodeId (required for 'related' strategy)
+     * path (required for 'path' strategy)
+     * tags (required for 'tag' strategy)
+     * relationshipTypes
+     * minStrength (0-1)
+     * before/after timestamps
+
+3. `forget_memory`
+   - Remove a memory from the graph
    - Required: id
-
-3. `query_memories`
-   - Query memories using various filters
-   - Optional: path, tags, relationshipType, relatedTo, limit, before, after
-
-4. `search_memories`
-   - Search memories by content
-   - Required: query
-   - Optional: limit
-
-5. `update_memory`
-   - Update an existing memory
-   - Required: id
-   - Optional: content, path, tags, relationships
-
-6. `delete_memory`
-   - Delete a memory by ID
-   - Required: id
+   - Optional: cascade (remove connected memories)
 
 ## Development
 
@@ -85,7 +111,6 @@ memory-graph/
 │   ├── tools/           # MCP tool implementations
 │   ├── types/           # TypeScript type definitions
 │   └── index.ts         # Main server entry
-├── tests/               # Test files
 ├── data/               # Memory storage (created at runtime)
 └── cline_docs/         # Project documentation
 ```
@@ -98,28 +123,21 @@ Memories are stored as nodes in a graph with the following structure:
 interface MemoryNode {
   id: string;
   content: string;
-  metadata: {
-    timestamp: string;
-    path: string;
-    tags?: string[];
-    relationships?: {
-      [key: string]: string[]; // relationshipType -> array of node IDs
-    };
-  };
+  timestamp: string;
+  path?: string;
+  tags?: string[];
 }
 ```
 
-Relationships between memories are stored as edges with metadata:
+Relationships between memories are stored as edges:
 
 ```typescript
 interface GraphEdge {
-  source: string;  // source node ID
-  target: string;  // target node ID
-  type: string;    // relationship type
-  metadata?: {
-    weight?: number;
-    timestamp?: string;
-  };
+  source: string;    // source node ID
+  target: string;    // target node ID
+  type: string;      // relationship type
+  strength: number;  // relationship strength (0-1)
+  timestamp: string; // when the relationship was created
 }
 ```
 
