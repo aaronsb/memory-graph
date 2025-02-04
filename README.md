@@ -7,8 +7,9 @@ An MCP server that provides persistent memory capabilities through a local knowl
 - Store and retrieve memories with content, tags, and metadata
 - Organize memories using customizable paths
 - Create relationships between memories
-- Search memories by content
-- Query memories using various filters
+- Advanced content search with fuzzy matching and regex support
+- Combine multiple search strategies (content, path, tags)
+- Flexible result sorting and relevance scoring
 - Persistent storage using local file system
 
 ## Installation
@@ -75,6 +76,7 @@ This initialization behavior ensures that:
      * related: Follow relationship paths from a starting point
      * path: Filter by organizational path
      * tag: Filter by memory tags
+     * content: Search within memory content
    - Optional filters:
      * startNodeId (required for 'related' strategy)
      * path (required for 'path' strategy)
@@ -82,6 +84,15 @@ This initialization behavior ensures that:
      * relationshipTypes
      * minStrength (0-1)
      * before/after timestamps
+   - Content Search Options:
+     * keywords: Array of terms to search for
+     * fuzzyMatch: Enable fuzzy matching using Levenshtein distance
+     * regex: Use regular expression pattern matching
+     * caseSensitive: Enable case-sensitive matching
+   - Advanced Features:
+     * combinedStrategy: Combine multiple search criteria
+     * sortBy: Sort results by 'relevance', 'date', or 'strength'
+     * matchDetails: Get highlighted matches with positions
 
 3. `edit_memory`
    - Edit an existing memory's content and relationships
