@@ -3,7 +3,7 @@ import {
   McpError,
 } from '@modelcontextprotocol/sdk/types.js';
 import { MemoryGraph } from '../graph/MemoryGraph.js';
-import { StoreMemoryInput, UpdateMemoryInput, MemoryQueryOptions } from '../types/graph.js';
+import { StoreMemoryInput, RecallMemoriesInput, ForgetMemoryInput } from '../types/graph.js';
 import { ToolRequest, ToolResponse, ToolName } from '../types/mcp.js';
 
 export const MEMORY_TOOLS = {
@@ -15,23 +15,38 @@ export const MEMORY_TOOLS = {
       properties: {
         content: {
           type: 'string',
-          description: 'The content to store as a memory',
+          description: 'The memory content',
         },
         path: {
           type: 'string',
-          description: 'Optional path to organize the memory',
+          description: 'Optional organization path',
         },
         tags: {
           type: 'array',
           items: { type: 'string' },
-          description: 'Optional tags to categorize the memory',
+          description: 'Optional categorization tags',
         },
         relationships: {
           type: 'object',
-          description: 'Optional relationships to other memories',
+          description: 'Optional connections to other memories',
           additionalProperties: {
             type: 'array',
-            items: { type: 'string' },
+            items: {
+              type: 'object',
+              properties: {
+                targetId: {
+                  type: 'string',
+                  description: 'ID of the target memory',
+                },
+                strength: {
+                  type: 'number',
+                  description: 'Relationship strength (0-1)',
+                  minimum: 0,
+                  maximum: 1,
+                },
+              },
+              required: ['targetId', 'strength'],
+            },
           },
         },
       },
@@ -39,124 +54,73 @@ export const MEMORY_TOOLS = {
     },
   },
 
-  retrieve_memory: {
-    name: 'retrieve_memory' as ToolName,
-    description: 'Retrieve a specific memory by ID',
+  recall_memories: {
+    name: 'recall_memories' as ToolName,
+    description: 'Recall memories using various strategies',
     inputSchema: {
       type: 'object',
       properties: {
-        id: {
-          type: 'string',
-          description: 'The ID of the memory to retrieve',
+        maxNodes: {
+          type: 'number',
+          description: 'Maximum number of memories to return',
+          minimum: 1,
         },
-      },
-      required: ['id'],
-    },
-  },
-
-  query_memories: {
-    name: 'query_memories' as ToolName,
-    description: 'Query memories using various filters',
-    inputSchema: {
-      type: 'object',
-      properties: {
+        strategy: {
+          type: 'string',
+          description: 'How to traverse and select memories',
+          enum: ['recent', 'related', 'path', 'tag'],
+        },
+        startNodeId: {
+          type: 'string',
+          description: 'Optional starting memory ID (required for "related" strategy)',
+        },
         path: {
           type: 'string',
-          description: 'Filter by memory path',
+          description: 'Filter by path (required for "path" strategy)',
         },
         tags: {
           type: 'array',
           items: { type: 'string' },
-          description: 'Filter by tags (all tags must match)',
+          description: 'Filter by tags (required for "tag" strategy)',
         },
-        relationshipType: {
-          type: 'string',
-          description: 'Filter by relationship type',
+        relationshipTypes: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Optional filter by relationship types',
         },
-        relatedTo: {
-          type: 'string',
-          description: 'Filter by related memory ID',
-        },
-        limit: {
+        minStrength: {
           type: 'number',
-          description: 'Maximum number of results to return',
+          description: 'Minimum relationship strength (0-1)',
+          minimum: 0,
+          maximum: 1,
         },
         before: {
           type: 'string',
-          description: 'Filter memories before this timestamp',
+          description: 'Optional timestamp upper bound',
         },
         after: {
           type: 'string',
-          description: 'Filter memories after this timestamp',
+          description: 'Optional timestamp lower bound',
         },
       },
+      required: ['maxNodes', 'strategy'],
     },
   },
 
-  search_memories: {
-    name: 'search_memories' as ToolName,
-    description: 'Search memories by content',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        query: {
-          type: 'string',
-          description: 'Search query string',
-        },
-        limit: {
-          type: 'number',
-          description: 'Maximum number of results to return',
-        },
-      },
-      required: ['query'],
-    },
-  },
-
-  update_memory: {
-    name: 'update_memory' as ToolName,
-    description: 'Update an existing memory',
+  forget_memory: {
+    name: 'forget_memory' as ToolName,
+    description: 'Remove a memory from the knowledge graph',
     inputSchema: {
       type: 'object',
       properties: {
         id: {
           type: 'string',
-          description: 'ID of the memory to update',
+          description: 'ID of the memory to forget',
         },
-        content: {
-          type: 'string',
-          description: 'New content for the memory',
-        },
-        path: {
-          type: 'string',
-          description: 'New path for the memory',
-        },
-        tags: {
-          type: 'array',
-          items: { type: 'string' },
-          description: 'New tags for the memory',
-        },
-        relationships: {
-          type: 'object',
-          description: 'New relationships for the memory',
-          additionalProperties: {
-            type: 'array',
-            items: { type: 'string' },
-          },
-        },
-      },
-      required: ['id'],
-    },
-  },
-
-  delete_memory: {
-    name: 'delete_memory' as ToolName,
-    description: 'Delete a memory by ID',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        id: {
-          type: 'string',
-          description: 'ID of the memory to delete',
+        cascade: {
+          type: 'boolean',
+          description: 'Whether to also remove directly connected memories',
+          default: false,
         },
       },
       required: ['id'],
@@ -177,16 +141,10 @@ export class MemoryTools {
     switch (name) {
       case 'store_memory':
         return this.handleStoreMemory(args as StoreMemoryInput);
-      case 'retrieve_memory':
-        return this.handleRetrieveMemory(args as { id: string });
-      case 'query_memories':
-        return this.handleQueryMemories(args as MemoryQueryOptions);
-      case 'search_memories':
-        return this.handleSearchMemories(args as { query: string; limit?: number });
-      case 'update_memory':
-        return this.handleUpdateMemory(args as UpdateMemoryInput);
-      case 'delete_memory':
-        return this.handleDeleteMemory(args as { id: string });
+      case 'recall_memories':
+        return this.handleRecallMemories(args as RecallMemoriesInput);
+      case 'forget_memory':
+        return this.handleForgetMemory(args as ForgetMemoryInput);
       default:
         throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
     }
@@ -203,68 +161,28 @@ export class MemoryTools {
     }
   }
 
-  private async handleRetrieveMemory(args: { id: string }): Promise<ToolResponse> {
+  private async handleRecallMemories(args: RecallMemoriesInput): Promise<ToolResponse> {
     try {
-      const results = await this.graph.queryMemories({ relatedTo: args.id });
-      const node = results.find(n => n.id === args.id);
-      if (!node) {
-        throw new McpError(ErrorCode.InvalidParams, `Memory not found: ${args.id}`);
-      }
-      return {
-        content: [{ type: 'text', text: JSON.stringify(node, null, 2) }],
-      };
-    } catch (error) {
-      throw new McpError(ErrorCode.InternalError, `Failed to retrieve memory: ${error}`);
-    }
-  }
-
-  private async handleQueryMemories(args: MemoryQueryOptions): Promise<ToolResponse> {
-    try {
-      const results = await this.graph.queryMemories(args);
+      const results = await this.graph.recallMemories(args);
       return {
         content: [{ type: 'text', text: JSON.stringify(results, null, 2) }],
       };
     } catch (error) {
-      throw new McpError(ErrorCode.InternalError, `Failed to query memories: ${error}`);
+      throw new McpError(ErrorCode.InternalError, `Failed to recall memories: ${error}`);
     }
   }
 
-  private async handleSearchMemories(args: { query: string; limit?: number }): Promise<ToolResponse> {
+  private async handleForgetMemory(args: ForgetMemoryInput): Promise<ToolResponse> {
     try {
-      const results = await this.graph.searchMemories(args.query, args.limit);
-      return {
-        content: [{ type: 'text', text: JSON.stringify(results, null, 2) }],
-      };
-    } catch (error) {
-      throw new McpError(ErrorCode.InternalError, `Failed to search memories: ${error}`);
-    }
-  }
-
-  private async handleUpdateMemory(args: UpdateMemoryInput): Promise<ToolResponse> {
-    try {
-      const node = await this.graph.updateMemory(args);
-      if (!node) {
-        throw new McpError(ErrorCode.InvalidParams, `Memory not found: ${args.id}`);
-      }
-      return {
-        content: [{ type: 'text', text: JSON.stringify(node, null, 2) }],
-      };
-    } catch (error) {
-      throw new McpError(ErrorCode.InternalError, `Failed to update memory: ${error}`);
-    }
-  }
-
-  private async handleDeleteMemory(args: { id: string }): Promise<ToolResponse> {
-    try {
-      const success = await this.graph.deleteMemory(args.id);
+      const success = await this.graph.forgetMemory(args);
       if (!success) {
         throw new McpError(ErrorCode.InvalidParams, `Memory not found: ${args.id}`);
       }
       return {
-        content: [{ type: 'text', text: 'Memory deleted successfully' }],
+        content: [{ type: 'text', text: 'Memory forgotten successfully' }],
       };
     } catch (error) {
-      throw new McpError(ErrorCode.InternalError, `Failed to delete memory: ${error}`);
+      throw new McpError(ErrorCode.InternalError, `Failed to forget memory: ${error}`);
     }
   }
 }

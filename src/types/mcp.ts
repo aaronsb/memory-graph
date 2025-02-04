@@ -1,21 +1,15 @@
 import { z } from 'zod';
-import { StoreMemoryInput, UpdateMemoryInput, MemoryQueryOptions } from './graph.js';
+import { StoreMemoryInput, RecallMemoriesInput, ForgetMemoryInput } from './graph.js';
 
 export type ToolName = 
   | 'store_memory'
-  | 'retrieve_memory'
-  | 'query_memories'
-  | 'search_memories'
-  | 'update_memory'
-  | 'delete_memory';
+  | 'recall_memories'
+  | 'forget_memory';
 
 export type ToolArgumentType = {
   'store_memory': StoreMemoryInput;
-  'retrieve_memory': { id: string };
-  'query_memories': MemoryQueryOptions;
-  'search_memories': { query: string; limit?: number };
-  'update_memory': UpdateMemoryInput;
-  'delete_memory': { id: string };
+  'recall_memories': RecallMemoriesInput;
+  'forget_memory': ForgetMemoryInput;
 };
 
 export interface ToolRequest {

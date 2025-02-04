@@ -1,42 +1,27 @@
 export interface MemoryNode {
   id: string;
   content: string;
-  metadata: {
-    timestamp: string;
-    path: string;
-    tags?: string[];
-    relationships?: {
-      [key: string]: string[]; // relationshipType -> array of node IDs
-    };
-  };
+  timestamp: string;
+  path?: string;
+  tags?: string[];
 }
 
 export interface GraphEdge {
-  source: string;  // source node ID
-  target: string;  // target node ID
-  type: string;    // relationship type
-  metadata?: {
-    weight?: number;
-    timestamp?: string;
-    [key: string]: any;
-  };
+  source: string;
+  target: string;
+  type: string;
+  strength: number; // 0-1 relationship strength
+  timestamp: string;
 }
 
 export interface MemoryGraphConfig {
   storageDir: string;
-  memoryFiles?: string[];  // Specific memory files to load (relative to storageDir)
-  loadAllFiles?: boolean;  // If true, load all .json files in storageDir
-  defaultPath?: string;    // Default path for new memories
+  defaultPath?: string;
 }
 
-export interface MemoryQueryOptions {
-  path?: string;
-  tags?: string[];
-  relationshipType?: string;
-  relatedTo?: string;
-  limit?: number;
-  before?: string;
-  after?: string;
+export interface Relationship {
+  targetId: string;
+  strength: number;
 }
 
 export interface StoreMemoryInput {
@@ -44,21 +29,31 @@ export interface StoreMemoryInput {
   path?: string;
   tags?: string[];
   relationships?: {
-    [key: string]: string[];
+    [type: string]: Relationship[];
   };
 }
 
-export interface UpdateMemoryInput {
-  id: string;
-  content?: string;
+export type RecallStrategy = 'recent' | 'related' | 'path' | 'tag';
+
+export interface RecallMemoriesInput {
+  maxNodes: number;
+  strategy: RecallStrategy;
+  startNodeId?: string;
   path?: string;
   tags?: string[];
-  relationships?: {
-    [key: string]: string[];
-  };
+  relationshipTypes?: string[];
+  minStrength?: number;
+  before?: string;
+  after?: string;
 }
 
-export type MemorySearchResult = {
+export interface ForgetMemoryInput {
+  id: string;
+  cascade?: boolean;
+}
+
+export interface RecallResult {
   node: MemoryNode;
+  edges: GraphEdge[];
   score: number;
-};
+}
