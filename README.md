@@ -37,6 +37,36 @@ The server can be configured using environment variables:
 - `LOAD_ALL_FILES`: Set to 'true' to load all JSON files in the storage directory
 - `DEFAULT_PATH`: Default path for storing memories
 
+#### MCP Configuration
+
+To use this server with Claude, add it to your MCP configuration file (e.g. `claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "memory-graph": {
+      "command": "node",
+      "args": ["/path/to/memory-graph/build/index.js"],
+      "env": {
+        "MEMORY_DIR": "/path/to/memory/storage",
+        "LOAD_ALL_FILES": "true",
+        "DEFAULT_PATH": "/memories"
+      },
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}
+```
+
+Configuration options:
+- `command`: The command to run the server (typically `node`)
+- `args`: Array of arguments, including path to the compiled server entry point
+- `env`: Environment variables for server configuration
+  - See environment variables section above for available options
+- `disabled`: Whether the server is disabled (default: false)
+- `autoApprove`: Array of tool names that can be auto-approved (default: empty)
+
 #### Memory File Initialization
 
 The server handles memory file initialization in three modes:
