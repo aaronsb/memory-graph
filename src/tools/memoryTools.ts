@@ -10,7 +10,10 @@ import { ToolRequest, ToolResponse, ToolName } from '../types/mcp.js';
 export const MEMORY_TOOLS = {
   store_memory: {
     name: 'store_memory' as ToolName,
-    description: 'Store a new memory in the knowledge graph',
+    description: `Store a new memory in the knowledge graph.
+During dreaming: Create at most 1-2 new synthesized memories per dreaming session.
+Focus only on clear, significant patterns that emerge across multiple memories.
+Avoid creating abstract memories that don't add concrete value.`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -57,7 +60,10 @@ export const MEMORY_TOOLS = {
 
   recall_memories: {
     name: 'recall_memories' as ToolName,
-    description: 'Recall memories using various strategies including content search',
+    description: `Recall memories using various strategies including content search.
+During dreaming: Limit initial recall to 10-15 most relevant memories about the topic.
+Use combinedStrategy to gather related memories, but avoid going too broad or deep
+in the connections. Stay focused on the core topic being dreamed about.`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -142,7 +148,10 @@ export const MEMORY_TOOLS = {
 
   edit_memory: {
     name: 'edit_memory' as ToolName,
-    description: 'Edit an existing memory in the knowledge graph',
+    description: `Edit an existing memory in the knowledge graph.
+During dreaming: Limit edits to 2-3 memories per session. Focus on obvious
+consolidation opportunities where memories are clearly redundant. Don't over-edit
+or try to force connections - memories can retain their unique perspectives.`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -184,7 +193,10 @@ export const MEMORY_TOOLS = {
 
   forget_memory: {
     name: 'forget_memory' as ToolName,
-    description: 'Remove a memory from the knowledge graph',
+    description: `Remove a memory from the knowledge graph.
+During dreaming: Use at most once per session, and only for memories that are
+100% redundant after consolidation. When in doubt, preserve the memory. Never
+remove memories just because they seem less important.`,
     inputSchema: {
       type: 'object',
       properties: {
