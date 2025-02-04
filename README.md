@@ -83,7 +83,14 @@ This initialization behavior ensures that:
      * minStrength (0-1)
      * before/after timestamps
 
-3. `forget_memory`
+3. `edit_memory`
+   - Edit an existing memory's content and relationships
+   - Required: id
+   - Optional: content, relationships (with strength 0-1)
+   - Updates only provided fields
+   - Replaces all relationships when provided
+
+4. `forget_memory`
    - Remove a memory from the graph
    - Required: id
    - Optional: cascade (remove connected memories)
