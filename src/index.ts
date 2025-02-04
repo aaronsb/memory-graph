@@ -22,9 +22,17 @@ class MemoryGraphServer {
   private memoryTools: MemoryTools;
 
   constructor() {
-    // Initialize memory graph with default storage path
-    const storagePath = process.env.MEMORY_PATH || path.join(__dirname, '../data');
-    this.memoryGraph = new MemoryGraph({ storagePath });
+    // Initialize memory graph with configuration
+    const storageDir = process.env.MEMORY_DIR || path.join(__dirname, '../data');
+    const memoryFiles = process.env.MEMORY_FILES ? process.env.MEMORY_FILES.split(',') : undefined;
+    const loadAllFiles = process.env.LOAD_ALL_FILES === 'true';
+    
+    this.memoryGraph = new MemoryGraph({
+      storageDir,
+      memoryFiles,
+      loadAllFiles,
+      defaultPath: process.env.DEFAULT_PATH
+    });
     this.memoryTools = new MemoryTools(this.memoryGraph);
 
     // Initialize MCP server

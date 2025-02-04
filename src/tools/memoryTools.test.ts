@@ -13,7 +13,11 @@ describe('MemoryTools', () => {
   beforeEach(async () => {
     testStoragePath = path.join(os.tmpdir(), `memory-tools-test-${Date.now()}`);
     await fs.mkdir(testStoragePath, { recursive: true });
-    graph = new MemoryGraph({ storagePath: testStoragePath });
+    graph = new MemoryGraph({ 
+      storageDir: testStoragePath,
+      loadAllFiles: true,
+      defaultPath: '/'
+    });
     await graph.initialize();
     tools = new MemoryTools(graph);
   });

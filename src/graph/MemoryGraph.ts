@@ -14,29 +14,65 @@ export class MemoryGraph {
   private nodes: Map<string, MemoryNode>;
   private edges: GraphEdge[];
   private config: MemoryGraphConfig;
-  private storageFile: string;
+  private activeFile: string;
 
   constructor(config: MemoryGraphConfig) {
     this.nodes = new Map();
     this.edges = [];
     this.config = config;
-    this.storageFile = path.join(config.storagePath, 'memory-graph.json');
+    // Default to memory.json in the storage directory if no specific files are configured
+    this.activeFile = path.join(config.storageDir, 'memory.json');
   }
 
   private generateId(): string {
     return Date.now().toString(36) + Math.random().toString(36).substring(2);
   }
 
-  async initialize(): Promise<void> {
+  private async loadMemoryFile(filePath: string): Promise<void> {
     try {
-      await fs.mkdir(this.config.storagePath, { recursive: true });
-      const data = await fs.readFile(this.storageFile, 'utf-8');
+      const data = await fs.readFile(filePath, 'utf-8');
       const { nodes, edges } = JSON.parse(data);
-      this.nodes = new Map(Object.entries(nodes));
-      this.edges = edges;
+      
+      // Merge nodes and edges from this file
+      for (const [id, node] of Object.entries(nodes)) {
+        this.nodes.set(id, node as MemoryNode);
+      }
+      this.edges.push(...edges);
     } catch (error) {
-      // If file doesn't exist, start with empty graph
-      await this.save();
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw error;
+      }
+      // If file doesn't exist, it will be created on first save
+    }
+  }
+
+  private async findJsonFiles(dir: string): Promise<string[]> {
+    const files = await fs.readdir(dir);
+    return files
+      .filter(file => file.endsWith('.json'))
+      .map(file => path.join(dir, file));
+  }
+
+  async initialize(): Promise<void> {
+    await fs.mkdir(this.config.storageDir, { recursive: true });
+
+    if (this.config.loadAllFiles) {
+      // Load all JSON files in the directory
+      const files = await this.findJsonFiles(this.config.storageDir);
+      for (const file of files) {
+        await this.loadMemoryFile(file);
+      }
+    } else if (this.config.memoryFiles && this.config.memoryFiles.length > 0) {
+      // Load specific memory files
+      for (const file of this.config.memoryFiles) {
+        const filePath = path.join(this.config.storageDir, file);
+        await this.loadMemoryFile(filePath);
+      }
+      // Use the first specified file as the active file for saving new memories
+      this.activeFile = path.join(this.config.storageDir, this.config.memoryFiles[0]);
+    } else {
+      // Load default memory file
+      await this.loadMemoryFile(this.activeFile);
     }
   }
 
@@ -45,7 +81,7 @@ export class MemoryGraph {
       nodes: Object.fromEntries(this.nodes),
       edges: this.edges,
     };
-    await fs.writeFile(this.storageFile, JSON.stringify(data, null, 2));
+    await fs.writeFile(this.activeFile, JSON.stringify(data, null, 2));
   }
 
   async storeMemory(input: StoreMemoryInput): Promise<MemoryNode> {

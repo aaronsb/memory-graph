@@ -23,8 +23,10 @@ export interface GraphEdge {
 }
 
 export interface MemoryGraphConfig {
-  storagePath: string;
-  defaultPath?: string;
+  storageDir: string;
+  memoryFiles?: string[];  // Specific memory files to load (relative to storageDir)
+  loadAllFiles?: boolean;  // If true, load all .json files in storageDir
+  defaultPath?: string;    // Default path for new memories
 }
 
 export interface MemoryQueryOptions {
