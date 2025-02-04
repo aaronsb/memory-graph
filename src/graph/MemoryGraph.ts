@@ -7,6 +7,7 @@ import {
   StoreMemoryInput,
   RecallMemoriesInput,
   ForgetMemoryInput,
+  EditMemoryInput,
   RecallResult,
   RecallStrategy,
   Relationship
@@ -246,5 +247,41 @@ export class MemoryGraph {
            edge.target === deletedId || 
            !this.nodes.has(edge.source) || 
            !this.nodes.has(edge.target);
+  }
+
+  async editMemory(input: EditMemoryInput): Promise<MemoryNode> {
+    const node = this.nodes.get(input.id);
+    if (!node) {
+      throw new Error(`Memory not found: ${input.id}`);
+    }
+
+    // Update content if provided
+    if (input.content !== undefined) {
+      node.content = input.content;
+    }
+
+    // Update relationships if provided
+    if (input.relationships) {
+      // Remove existing edges for this node
+      this.edges = this.edges.filter(edge => edge.source !== input.id);
+
+      // Add new edges
+      Object.entries(input.relationships).forEach(([type, relationships]) => {
+        relationships.forEach(rel => {
+          if (this.nodes.has(rel.targetId)) {
+            this.edges.push({
+              source: input.id,
+              target: rel.targetId,
+              type,
+              strength: rel.strength,
+              timestamp: new Date().toISOString(),
+            });
+          }
+        });
+      });
+    }
+
+    await this.save();
+    return node;
   }
 }

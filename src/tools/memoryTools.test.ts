@@ -156,4 +156,115 @@ describe('MemoryTools', () => {
       expect(results.find((r: any) => r.node.id === storedMemory.id)).toBeUndefined();
     });
   });
+
+  describe('edit_memory', () => {
+    it('should edit memory content', async () => {
+      // First store a memory
+      const storeResponse = await tools.handleToolCall({
+        name: 'store_memory',
+        arguments: {
+          content: 'Original content',
+        },
+      });
+      const storedMemory = JSON.parse(storeResponse.content[0].text);
+
+      // Edit the memory
+      const editRequest: ToolRequest = {
+        name: 'edit_memory',
+        arguments: {
+          id: storedMemory.id,
+          content: 'Updated content',
+        },
+      };
+
+      const editResponse = await tools.handleToolCall(editRequest);
+      const editedMemory = JSON.parse(editResponse.content[0].text);
+      expect(editedMemory.content).toBe('Updated content');
+
+      // Verify the change
+      const recallRequest: ToolRequest = {
+        name: 'recall_memories',
+        arguments: {
+          maxNodes: 1,
+          strategy: 'recent',
+        },
+      };
+
+      const recallResponse = await tools.handleToolCall(recallRequest);
+      const results = JSON.parse(recallResponse.content[0].text);
+      expect(results[0].node.content).toBe('Updated content');
+    });
+
+    it('should edit memory relationships', async () => {
+      // Store target memory
+      const targetResponse = await tools.handleToolCall({
+        name: 'store_memory',
+        arguments: {
+          content: 'Target memory',
+        },
+      });
+      const target = JSON.parse(targetResponse.content[0].text);
+
+      // Store source memory with relationship
+      const sourceResponse = await tools.handleToolCall({
+        name: 'store_memory',
+        arguments: {
+          content: 'Source memory',
+          relationships: {
+            references: [{
+              targetId: target.id,
+              strength: 0.5
+            }]
+          }
+        },
+      });
+      const source = JSON.parse(sourceResponse.content[0].text);
+
+      // Edit the relationship
+      const editRequest: ToolRequest = {
+        name: 'edit_memory',
+        arguments: {
+          id: source.id,
+          relationships: {
+            references: [{
+              targetId: target.id,
+              strength: 0.9
+            }]
+          }
+        },
+      };
+
+      await tools.handleToolCall(editRequest);
+
+      // Verify the change
+      const recallRequest: ToolRequest = {
+        name: 'recall_memories',
+        arguments: {
+          maxNodes: 10,
+          strategy: 'related',
+          startNodeId: source.id,
+          minStrength: 0.8
+        },
+      };
+
+      const recallResponse = await tools.handleToolCall(recallRequest);
+      const results = JSON.parse(recallResponse.content[0].text);
+      expect(results).toHaveLength(2);
+      expect(results[1].edges[0].strength).toBe(0.9);
+    });
+
+    it('should handle non-existent memory error', async () => {
+      const editRequest: ToolRequest = {
+        name: 'edit_memory',
+        arguments: {
+          id: 'non-existent',
+          content: 'New content',
+        },
+      };
+
+      const response = await tools.handleToolCall(editRequest);
+      expect(response.isError).toBe(true);
+      expect(response.content[0].text).toBe('Memory not found: non-existent');
+    });
+  });
 });

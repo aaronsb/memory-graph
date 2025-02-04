@@ -290,4 +290,112 @@ describe('MemoryGraph', () => {
       expect(result).toBe(false);
     });
   });
+
+  describe('editMemory', () => {
+    let graph: MemoryGraph;
+
+    beforeEach(async () => {
+      graph = new MemoryGraph({ 
+        storageDir: testStoragePath,
+        defaultPath: '/'
+      });
+      await graph.initialize();
+    });
+
+    it('should edit memory content', async () => {
+      const memory = await graph.storeMemory({
+        content: 'Original content'
+      });
+
+      const edited = await graph.editMemory({
+        id: memory.id,
+        content: 'Updated content'
+      });
+
+      expect(edited.content).toBe('Updated content');
+      
+      const results = await graph.recallMemories({
+        maxNodes: 1,
+        strategy: 'recent'
+      });
+      expect(results[0].node.content).toBe('Updated content');
+    });
+
+    it('should edit memory relationships', async () => {
+      const target = await graph.storeMemory({
+        content: 'Target memory'
+      });
+
+      const memory = await graph.storeMemory({
+        content: 'Original memory',
+        relationships: {
+          references: [{
+            targetId: target.id,
+            strength: 0.5
+          }]
+        }
+      });
+
+      const edited = await graph.editMemory({
+        id: memory.id,
+        relationships: {
+          references: [{
+            targetId: target.id,
+            strength: 0.9
+          }]
+        }
+      });
+
+      const results = await graph.recallMemories({
+        maxNodes: 10,
+        strategy: 'related',
+        startNodeId: memory.id,
+        minStrength: 0.8
+      });
+
+      expect(results).toHaveLength(2);
+      const edge = results[1].edges[0];
+      expect(edge.strength).toBe(0.9);
+    });
+
+    it('should throw error for non-existent memory', async () => {
+      await expect(graph.editMemory({
+        id: 'non-existent',
+        content: 'New content'
+      })).rejects.toThrow('Memory not found');
+    });
+
+    it('should allow editing both content and relationships', async () => {
+      const target = await graph.storeMemory({
+        content: 'Target memory'
+      });
+
+      const memory = await graph.storeMemory({
+        content: 'Original content'
+      });
+
+      const edited = await graph.editMemory({
+        id: memory.id,
+        content: 'Updated content',
+        relationships: {
+          references: [{
+            targetId: target.id,
+            strength: 0.7
+          }]
+        }
+      });
+
+      expect(edited.content).toBe('Updated content');
+      
+      const results = await graph.recallMemories({
+        maxNodes: 10,
+        strategy: 'related',
+        startNodeId: memory.id
+      });
+
+      expect(results).toHaveLength(2);
+      expect(results[0].node.content).toBe('Updated content');
+      expect(results[1].edges[0].strength).toBe(0.7);
+    });
+  });
 });

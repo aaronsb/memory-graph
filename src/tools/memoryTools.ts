@@ -3,7 +3,7 @@ import {
   McpError,
 } from '@modelcontextprotocol/sdk/types.js';
 import { MemoryGraph } from '../graph/MemoryGraph.js';
-import { StoreMemoryInput, RecallMemoriesInput, ForgetMemoryInput } from '../types/graph.js';
+import { StoreMemoryInput, RecallMemoriesInput, ForgetMemoryInput, EditMemoryInput } from '../types/graph.js';
 import { ToolRequest, ToolResponse, ToolName } from '../types/mcp.js';
 
 export const MEMORY_TOOLS = {
@@ -107,6 +107,48 @@ export const MEMORY_TOOLS = {
     },
   },
 
+  edit_memory: {
+    name: 'edit_memory' as ToolName,
+    description: 'Edit an existing memory in the knowledge graph',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: {
+          type: 'string',
+          description: 'ID of the memory to edit',
+        },
+        content: {
+          type: 'string',
+          description: 'New content for the memory',
+        },
+        relationships: {
+          type: 'object',
+          description: 'New relationships to replace existing ones',
+          additionalProperties: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                targetId: {
+                  type: 'string',
+                  description: 'ID of the target memory',
+                },
+                strength: {
+                  type: 'number',
+                  description: 'Relationship strength (0-1)',
+                  minimum: 0,
+                  maximum: 1,
+                },
+              },
+              required: ['targetId', 'strength'],
+            },
+          },
+        },
+      },
+      required: ['id'],
+    },
+  },
+
   forget_memory: {
     name: 'forget_memory' as ToolName,
     description: 'Remove a memory from the knowledge graph',
@@ -145,6 +187,8 @@ export class MemoryTools {
         return this.handleRecallMemories(args as RecallMemoriesInput);
       case 'forget_memory':
         return this.handleForgetMemory(args as ForgetMemoryInput);
+      case 'edit_memory':
+        return this.handleEditMemory(args as EditMemoryInput);
       default:
         throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
     }
@@ -183,6 +227,23 @@ export class MemoryTools {
       };
     } catch (error) {
       throw new McpError(ErrorCode.InternalError, `Failed to forget memory: ${error}`);
+    }
+  }
+
+  private async handleEditMemory(args: EditMemoryInput): Promise<ToolResponse> {
+    try {
+      const node = await this.graph.editMemory(args);
+      return {
+        content: [{ type: 'text', text: JSON.stringify(node, null, 2) }],
+      };
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('Memory not found')) {
+        return {
+          content: [{ type: 'text', text: error.message }],
+          isError: true
+        };
+      }
+      throw new McpError(ErrorCode.InternalError, `Failed to edit memory: ${error}`);
     }
   }
 }

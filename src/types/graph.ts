@@ -47,6 +47,14 @@ export interface RecallMemoriesInput {
   after?: string;
 }
 
+export interface EditMemoryInput {
+  id: string;
+  content?: string;
+  relationships?: {
+    [type: string]: Relationship[];
+  };
+}
+
 export interface ForgetMemoryInput {
   id: string;
   cascade?: boolean;

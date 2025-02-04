@@ -1,15 +1,17 @@
 import { z } from 'zod';
-import { StoreMemoryInput, RecallMemoriesInput, ForgetMemoryInput } from './graph.js';
+import { StoreMemoryInput, RecallMemoriesInput, ForgetMemoryInput, EditMemoryInput } from './graph.js';
 
 export type ToolName = 
   | 'store_memory'
   | 'recall_memories'
-  | 'forget_memory';
+  | 'forget_memory'
+  | 'edit_memory';
 
 export type ToolArgumentType = {
   'store_memory': StoreMemoryInput;
   'recall_memories': RecallMemoriesInput;
   'forget_memory': ForgetMemoryInput;
+  'edit_memory': EditMemoryInput;
 };
 
 export interface ToolRequest {
