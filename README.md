@@ -106,6 +106,26 @@ This initialization behavior ensures that:
    - Required: id
    - Optional: cascade (remove connected memories)
 
+5. `generate_mermaid_graph`
+   - Generate a Mermaid flowchart visualization of memory relationships
+   - Required: startNodeId
+   - Optional:
+     * maxDepth: Maximum depth of relationships to traverse (1-5, default: 2)
+     * direction: Graph direction ('TB', 'BT', 'LR', 'RL', default: 'LR')
+     * relationshipTypes: Filter specific relationship types
+     * minStrength: Minimum relationship strength to include (0-1)
+   - Features:
+     * Automatically truncates long content
+     * Escapes special characters
+     * Generates valid Mermaid syntax for easy visualization
+   - Example output:
+     ```mermaid
+     graph LR
+         node1["First memory content..."]
+         node2["Second memory content..."]
+         node1 -->|relates_to| node2
+     ```
+
 ## Development
 
 ### Building
