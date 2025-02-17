@@ -14,11 +14,62 @@ An MCP server that provides persistent memory capabilities through a local knowl
 
 ## Installation
 
+### Local Installation
+
 ```bash
 npm install
 ```
 
+### Docker Installation
+
+The server is available as a Docker container from GitHub Container Registry:
+
+```bash
+docker pull ghcr.io/[owner]/memory-graph:latest
+```
+
+Replace `[owner]` with your GitHub username or organization.
+
 ## Usage
+
+### Docker Usage
+
+Run the container with your desired configuration:
+
+```bash
+docker run -v /path/to/data:/app/data -e MEMORY_DIR=/app/data ghcr.io/[owner]/memory-graph:latest
+```
+
+Environment variables and volume mounts:
+- `-v /path/to/data:/app/data`: Mount a local directory for persistent storage
+- `-e MEMORY_DIR=/app/data`: Set the memory directory (must match the container mount point)
+- Additional environment variables as documented below
+
+#### MCP Configuration with Docker
+
+To use the Docker container with Claude, update your MCP configuration:
+
+```json
+{
+  "mcpServers": {
+    "memory-graph": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "-v", "/path/to/data:/app/data",
+        "-e", "MEMORY_DIR=/app/data",
+        "ghcr.io/[owner]/memory-graph:latest"
+      ],
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}
+```
+
+### Local Usage
 
 ### Starting the Server
 
