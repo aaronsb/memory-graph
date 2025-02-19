@@ -6,7 +6,10 @@ export type ToolName =
   | 'recall_memories'
   | 'forget_memory'
   | 'edit_memory'
-  | 'generate_mermaid_graph';
+  | 'generate_mermaid_graph'
+  | 'select_domain'
+  | 'list_domains'
+  | 'create_domain';
 
 export type ToolArgumentType = {
   'store_memory': StoreMemoryInput;
@@ -14,6 +17,9 @@ export type ToolArgumentType = {
   'forget_memory': ForgetMemoryInput;
   'edit_memory': EditMemoryInput;
   'generate_mermaid_graph': GenerateMermaidGraphInput;
+  'select_domain': { id: string };
+  'list_domains': Record<string, never>;
+  'create_domain': { id: string; name: string; description: string };
 };
 
 export interface ToolRequest {

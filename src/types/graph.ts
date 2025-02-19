@@ -1,9 +1,30 @@
+export interface DomainInfo {
+  id: string;          // Unique domain identifier
+  name: string;        // Human-readable name
+  description: string; // Purpose/scope of the domain
+  created: string;     // ISO timestamp
+  lastAccess: string;  // ISO timestamp
+}
+
+export interface PersistenceState {
+  currentDomain: string;
+  lastAccess: string;
+  lastMemoryId?: string;
+}
+
+export interface DomainRef {
+  domain: string;
+  nodeId: string;
+  description?: string;
+}
+
 export interface MemoryNode {
   id: string;
   content: string;
   timestamp: string;
   path?: string;
   tags?: string[];
+  domainRefs?: DomainRef[];
 }
 
 export interface GraphEdge {
@@ -17,6 +38,7 @@ export interface GraphEdge {
 export interface MemoryGraphConfig {
   storageDir: string;
   defaultPath?: string;
+  defaultDomain?: string;
 }
 
 export interface Relationship {
@@ -31,6 +53,7 @@ export interface StoreMemoryInput {
   relationships?: {
     [type: string]: Relationship[];
   };
+  domainRefs?: DomainRef[];
 }
 
 export type RecallStrategy = 'recent' | 'related' | 'path' | 'tag' | 'content';

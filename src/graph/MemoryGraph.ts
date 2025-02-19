@@ -11,20 +11,34 @@ import {
   RecallResult,
   RecallStrategy,
   Relationship,
-  MatchDetails
+  MatchDetails,
+  DomainInfo,
+  PersistenceState
 } from '../types/graph.js';
 
 export class MemoryGraph {
   private nodes: Map<string, MemoryNode>;
   private edges: GraphEdge[];
   private config: MemoryGraphConfig;
+  private currentDomain: string;
+  private domains: Map<string, DomainInfo>;
   private memoryFile: string;
+  private domainsFile: string;
+  private persistenceFile: string;
+  private memoriesDir: string;
 
   constructor(config: MemoryGraphConfig) {
     this.nodes = new Map();
     this.edges = [];
     this.config = config;
-    this.memoryFile = path.join(config.storageDir, 'memory.json');
+    this.currentDomain = config.defaultDomain || 'general';
+    this.domains = new Map();
+    
+    // Set up file paths
+    this.memoriesDir = path.join(config.storageDir, 'memories');
+    this.domainsFile = path.join(config.storageDir, 'domains.json');
+    this.persistenceFile = path.join(config.storageDir, 'persistence.json');
+    this.memoryFile = path.join(this.memoriesDir, `${this.currentDomain}.json`);
   }
 
   private generateId(): string {
@@ -32,8 +46,51 @@ export class MemoryGraph {
   }
 
   async initialize(): Promise<void> {
+    // Create required directories
     await fs.mkdir(this.config.storageDir, { recursive: true });
+    await fs.mkdir(this.memoriesDir, { recursive: true });
     
+    // Initialize domains file if it doesn't exist
+    try {
+      const domainsData = await fs.readFile(this.domainsFile, 'utf-8');
+      const parsed = JSON.parse(domainsData);
+      Object.entries(parsed).forEach(([id, info]) => {
+        this.domains.set(id, info as DomainInfo);
+      });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        // Create default domain
+        const defaultDomain: DomainInfo = {
+          id: 'general',
+          name: 'General',
+          description: 'Default domain for general memories',
+          created: new Date().toISOString(),
+          lastAccess: new Date().toISOString()
+        };
+        this.domains.set('general', defaultDomain);
+        await this.saveDomains();
+      } else {
+        throw error;
+      }
+    }
+
+    // Load persistence state
+    try {
+      const persistenceData = await fs.readFile(this.persistenceFile, 'utf-8');
+      const state = JSON.parse(persistenceData) as PersistenceState;
+      if (this.domains.has(state.currentDomain)) {
+        this.currentDomain = state.currentDomain;
+        this.memoryFile = path.join(this.memoriesDir, `${this.currentDomain}.json`);
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        await this.savePersistence();
+      } else {
+        throw error;
+      }
+    }
+
+    // Load or create current domain's memory file
     try {
       const data = await fs.readFile(this.memoryFile, 'utf-8');
       const parsed = JSON.parse(data);
@@ -50,11 +107,13 @@ export class MemoryGraph {
         this.edges = parsed.edges;
       }
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        // Create empty memory file
+        const emptyData = { nodes: {}, edges: [] };
+        await fs.writeFile(this.memoryFile, JSON.stringify(emptyData, null, 2));
+      } else {
         throw error;
       }
-      // Create empty memory file
-      await this.save();
     }
   }
 
@@ -64,6 +123,108 @@ export class MemoryGraph {
       edges: this.edges,
     };
     await fs.writeFile(this.memoryFile, JSON.stringify(data, null, 2));
+    
+    // Update domain's last access time
+    const domain = this.domains.get(this.currentDomain);
+    if (domain) {
+      domain.lastAccess = new Date().toISOString();
+      await this.saveDomains();
+    }
+    
+    // Update persistence state
+    await this.savePersistence();
+  }
+
+  private async saveDomains(): Promise<void> {
+    const data = Object.fromEntries(this.domains);
+    await fs.writeFile(this.domainsFile, JSON.stringify(data, null, 2));
+  }
+
+  private async savePersistence(): Promise<void> {
+    const state: PersistenceState = {
+      currentDomain: this.currentDomain,
+      lastAccess: new Date().toISOString(),
+      lastMemoryId: Array.from(this.nodes.keys()).pop()
+    };
+    await fs.writeFile(this.persistenceFile, JSON.stringify(state, null, 2));
+  }
+
+  async createDomain(id: string, name: string, description: string): Promise<DomainInfo> {
+    if (this.domains.has(id)) {
+      throw new Error(`Domain already exists: ${id}`);
+    }
+
+    const domain: DomainInfo = {
+      id,
+      name,
+      description,
+      created: new Date().toISOString(),
+      lastAccess: new Date().toISOString()
+    };
+
+    this.domains.set(id, domain);
+    await this.saveDomains();
+
+    // Create empty memory file for new domain
+    const domainFile = path.join(this.memoriesDir, `${id}.json`);
+    await fs.writeFile(domainFile, JSON.stringify({ nodes: {}, edges: [] }, null, 2));
+
+    return domain;
+  }
+
+  async selectDomain(id: string): Promise<DomainInfo> {
+    const domain = this.domains.get(id);
+    if (!domain) {
+      throw new Error(`Domain not found: ${id}`);
+    }
+
+    // Save current state before switching
+    await this.save();
+
+    // Clear current memory state
+    this.nodes.clear();
+    this.edges = [];
+
+    // Switch to new domain
+    this.currentDomain = id;
+    this.memoryFile = path.join(this.memoriesDir, `${id}.json`);
+    
+    // Load new domain's memories
+    try {
+      const data = await fs.readFile(this.memoryFile, 'utf-8');
+      const parsed = JSON.parse(data);
+      
+      if (parsed.nodes) {
+        Object.entries(parsed.nodes).forEach(([id, node]) => {
+          this.nodes.set(id, node as MemoryNode);
+        });
+      }
+      
+      if (Array.isArray(parsed.edges)) {
+        this.edges = parsed.edges;
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        // Create empty memory file if it doesn't exist
+        const emptyData = { nodes: {}, edges: [] };
+        await fs.writeFile(this.memoryFile, JSON.stringify(emptyData, null, 2));
+      } else {
+        throw error;
+      }
+    }
+
+    // Update persistence state
+    await this.savePersistence();
+
+    return domain;
+  }
+
+  async listDomains(): Promise<DomainInfo[]> {
+    return Array.from(this.domains.values());
+  }
+
+  getCurrentDomain(): string {
+    return this.currentDomain;
   }
 
   async storeMemory(input: StoreMemoryInput): Promise<MemoryNode> {
@@ -73,6 +234,7 @@ export class MemoryGraph {
       timestamp: new Date().toISOString(),
       path: input.path || this.config.defaultPath || '/',
       tags: input.tags,
+      domainRefs: input.domainRefs
     };
 
     this.nodes.set(node.id, node);
