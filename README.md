@@ -4,13 +4,16 @@ An MCP server that provides persistent memory capabilities through a local knowl
 
 ## Features
 
+- Domain-based memory organization for context isolation
 - Store and retrieve memories with content, tags, and metadata
-- Organize memories using customizable paths
-- Create relationships between memories
+- Cross-domain memory references with relationship tracking
+- Automatic session state persistence and restoration
 - Advanced content search with fuzzy matching and regex support
 - Combine multiple search strategies (content, path, tags)
 - Flexible result sorting and relevance scoring
 - Persistent storage using local file system
+
+See [Memory Architecture](cline_docs/memoryArchitecture.md) for detailed documentation of the domain-based system.
 
 ## Installation
 
@@ -144,7 +147,27 @@ This initialization behavior ensures that:
 
 ### Available Tools
 
-1. `store_memory`
+1. `select_domain`
+   - Switch to a different memory domain
+   - Required: id (domain identifier)
+   - Loads memories from the specified domain
+   - Makes it the active context for all memory operations
+   - Automatically saves current state before switching
+
+2. `list_domains`
+   - List all available memory domains with their metadata
+   - Returns current domain and list of all domains
+   - Includes creation and last access timestamps
+   - No required parameters
+
+3. `create_domain`
+   - Create a new memory domain
+   - Required: id, name, description
+   - Creates domain entry and initializes empty memory file
+   - Validates domain ID uniqueness
+   - Returns domain info
+
+4. `store_memory`
    - Store new information in the memory graph
    - Required: content
    - Optional: path, tags, relationships (with strength 0-1)
@@ -278,21 +301,32 @@ memory-graph/
 
 ## Memory Graph Structure
 
-Memories are stored as nodes in a graph with the following structure:
+Memories are stored in domain-specific files with the following structure:
 
 ```typescript
+interface DomainInfo {
+  id: string;          // Unique domain identifier
+  name: string;        // Human-readable name
+  description: string; // Purpose/scope of the domain
+  created: string;     // ISO timestamp
+  lastAccess: string;  // ISO timestamp
+}
+
 interface MemoryNode {
   id: string;
   content: string;
   timestamp: string;
   path?: string;
   tags?: string[];
+  domainRefs?: DomainRef[]; // Cross-domain references
 }
-```
 
-Relationships between memories are stored as edges:
+interface DomainRef {
+  domain: string;      // Target domain
+  nodeId: string;      // Target memory ID
+  description?: string; // Reference context
+}
 
-```typescript
 interface GraphEdge {
   source: string;    // source node ID
   target: string;    // target node ID
@@ -301,6 +335,11 @@ interface GraphEdge {
   timestamp: string; // when the relationship was created
 }
 ```
+
+The system maintains three types of files:
+1. `domains.json`: Master list of all memory domains
+2. `persistence.json`: Session state tracking
+3. `memories/{domain}.json`: Domain-specific memory files
 
 ## License
 

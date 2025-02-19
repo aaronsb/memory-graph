@@ -2,8 +2,167 @@ import { MemoryGraph } from './MemoryGraph.js';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
+import { StoreMemoryInput, EditMemoryInput, DomainInfo } from '../types/graph.js';
 
 describe('MemoryGraph', () => {
+  describe('Domain Management', () => {
+    let graph: MemoryGraph;
+    const testDir = path.join(process.cwd(), 'test-data');
+    
+    beforeEach(async () => {
+      graph = new MemoryGraph({ storageDir: testDir });
+      await graph.initialize();
+    });
+
+    afterEach(async () => {
+      try {
+        await fs.rm(testDir, { recursive: true });
+      } catch (error) {
+        // Ignore errors if directory doesn't exist
+      }
+    });
+
+    it('should initialize with a default general domain', async () => {
+      const domains = await graph.listDomains();
+      expect(domains).toHaveLength(1);
+      expect(domains[0]).toMatchObject({
+        id: 'general',
+        name: 'General',
+        description: 'Default domain for general memories'
+      });
+      expect(graph.getCurrentDomain()).toBe('general');
+    });
+
+    it('should create a new domain', async () => {
+      const domain = await graph.createDomain(
+        'work',
+        'Work Domain',
+        'Work-related memories'
+      );
+
+      expect(domain).toMatchObject({
+        id: 'work',
+        name: 'Work Domain',
+        description: 'Work-related memories'
+      });
+
+      const domains = await graph.listDomains();
+      expect(domains).toHaveLength(2);
+      expect(domains.find(d => d.id === 'work')).toBeTruthy();
+
+      // Verify domain file was created
+      const domainFile = path.join(testDir, 'memories', 'work.json');
+      const exists = await fs.access(domainFile).then(() => true).catch(() => false);
+      expect(exists).toBe(true);
+    });
+
+    it('should prevent creating duplicate domains', async () => {
+      await graph.createDomain('test', 'Test', 'Test domain');
+      await expect(
+        graph.createDomain('test', 'Test 2', 'Another test')
+      ).rejects.toThrow('Domain already exists: test');
+    });
+
+    it('should switch between domains', async () => {
+      // Create test domains
+      await graph.createDomain('work', 'Work', 'Work memories');
+      await graph.createDomain('personal', 'Personal', 'Personal memories');
+
+      // Store a memory in general domain
+      const generalMemory = await graph.storeMemory({
+        content: 'General memory'
+      });
+
+      // Switch to work domain
+      await graph.selectDomain('work');
+      expect(graph.getCurrentDomain()).toBe('work');
+
+      // Store a memory in work domain
+      const workMemory = await graph.storeMemory({
+        content: 'Work memory'
+      });
+
+      // Switch to personal domain
+      await graph.selectDomain('personal');
+      expect(graph.getCurrentDomain()).toBe('personal');
+
+      // Store a memory in personal domain
+      const personalMemory = await graph.storeMemory({
+        content: 'Personal memory'
+      });
+
+      // Verify domain isolation
+      await graph.selectDomain('general');
+      let memories = await graph.recallMemories({ maxNodes: 10, strategy: 'recent' });
+      expect(memories).toHaveLength(1);
+      expect(memories[0].node.content).toBe('General memory');
+
+      await graph.selectDomain('work');
+      memories = await graph.recallMemories({ maxNodes: 10, strategy: 'recent' });
+      expect(memories).toHaveLength(1);
+      expect(memories[0].node.content).toBe('Work memory');
+
+      await graph.selectDomain('personal');
+      memories = await graph.recallMemories({ maxNodes: 10, strategy: 'recent' });
+      expect(memories).toHaveLength(1);
+      expect(memories[0].node.content).toBe('Personal memory');
+    });
+
+    it('should persist domain state between sessions', async () => {
+      // Create a domain and switch to it
+      await graph.createDomain('test', 'Test', 'Test domain');
+      await graph.selectDomain('test');
+      await graph.storeMemory({ content: 'Test memory' });
+
+      // Create a new graph instance (simulating new session)
+      const newGraph = new MemoryGraph({ storageDir: testDir });
+      await newGraph.initialize();
+
+      // Verify the domain state was restored
+      expect(newGraph.getCurrentDomain()).toBe('test');
+      const memories = await newGraph.recallMemories({ maxNodes: 10, strategy: 'recent' });
+      expect(memories).toHaveLength(1);
+      expect(memories[0].node.content).toBe('Test memory');
+    });
+
+    it('should handle cross-domain memory references', async () => {
+      // Create domains
+      await graph.createDomain('work', 'Work', 'Work memories');
+      await graph.createDomain('personal', 'Personal', 'Personal memories');
+
+      // Store a memory in work domain
+      await graph.selectDomain('work');
+      const workMemory = await graph.storeMemory({
+        content: 'Important work project'
+      });
+
+      // Store a memory in personal domain that references work memory
+      await graph.selectDomain('personal');
+      const personalMemory = await graph.storeMemory({
+        content: 'Need to balance this with personal time',
+        domainRefs: [{
+          domain: 'work',
+          nodeId: workMemory.id,
+          description: 'Related work project'
+        }]
+      });
+
+      // Verify the reference exists
+      const memories = await graph.recallMemories({ maxNodes: 10, strategy: 'recent' });
+      expect(memories[0].node.domainRefs).toHaveLength(1);
+      expect(memories[0].node.domainRefs![0]).toMatchObject({
+        domain: 'work',
+        nodeId: workMemory.id
+      });
+    });
+
+    it('should handle invalid domain selection', async () => {
+      await expect(
+        graph.selectDomain('nonexistent')
+      ).rejects.toThrow('Domain not found: nonexistent');
+    });
+  });
+
   let testStoragePath: string;
 
   beforeEach(async () => {
@@ -16,20 +175,37 @@ describe('MemoryGraph', () => {
   });
 
   describe('initialization', () => {
-    it('should create memory.json if it does not exist', async () => {
+    it('should create domain memory files if they do not exist', async () => {
       const graph = new MemoryGraph({
         storageDir: testStoragePath,
         defaultPath: '/'
       });
 
       await graph.initialize();
-      const memoryFile = path.join(testStoragePath, 'memory.json');
-      const exists = await fs.access(memoryFile).then(() => true).catch(() => false);
-      expect(exists).toBe(true);
+      
+      // Check memories directory was created
+      const memoriesDir = path.join(testStoragePath, 'memories');
+      const dirExists = await fs.access(memoriesDir).then(() => true).catch(() => false);
+      expect(dirExists).toBe(true);
+
+      // Check general domain file was created
+      const generalFile = path.join(memoriesDir, 'general.json');
+      const fileExists = await fs.access(generalFile).then(() => true).catch(() => false);
+      expect(fileExists).toBe(true);
+
+      // Verify file content
+      const content = await fs.readFile(generalFile, 'utf-8');
+      const data = JSON.parse(content);
+      expect(data).toEqual({ nodes: {}, edges: [] });
     });
 
-    it('should load existing memory file', async () => {
-      const memoryFile = path.join(testStoragePath, 'memory.json');
+    it('should load existing domain memory file', async () => {
+      // Create memories directory
+      const memoriesDir = path.join(testStoragePath, 'memories');
+      await fs.mkdir(memoriesDir, { recursive: true });
+
+      // Create test data in general domain
+      const generalFile = path.join(memoriesDir, 'general.json');
       const testData = {
         nodes: {
           "1": { id: "1", content: "test1", timestamp: new Date().toISOString() }
@@ -37,7 +213,7 @@ describe('MemoryGraph', () => {
         edges: []
       };
       
-      await fs.writeFile(memoryFile, JSON.stringify(testData));
+      await fs.writeFile(generalFile, JSON.stringify(testData));
 
       const graph = new MemoryGraph({
         storageDir: testStoragePath,

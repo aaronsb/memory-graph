@@ -3,11 +3,59 @@ import {
   McpError,
 } from '@modelcontextprotocol/sdk/types.js';
 import { MemoryGraph } from '../graph/MemoryGraph.js';
-import { StoreMemoryInput, RecallMemoriesInput, ForgetMemoryInput, EditMemoryInput, GenerateMermaidGraphInput } from '../types/graph.js';
+import { StoreMemoryInput, RecallMemoriesInput, ForgetMemoryInput, EditMemoryInput, GenerateMermaidGraphInput, DomainInfo } from '../types/graph.js';
 import { MermaidGenerator } from '../graph/MermaidGenerator.js';
 import { ToolRequest, ToolResponse, ToolName } from '../types/mcp.js';
 
 export const MEMORY_TOOLS = {
+  select_domain: {
+    name: 'select_domain' as ToolName,
+    description: 'Switch to a different memory domain. This will load the memories from the specified domain and make it the active context for all memory operations.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: {
+          type: 'string',
+          description: 'ID of the domain to select',
+        },
+      },
+      required: ['id'],
+    },
+  },
+
+  list_domains: {
+    name: 'list_domains' as ToolName,
+    description: 'List all available memory domains with their metadata.',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
+
+  create_domain: {
+    name: 'create_domain' as ToolName,
+    description: 'Create a new memory domain.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: {
+          type: 'string',
+          description: 'Unique identifier for the domain',
+        },
+        name: {
+          type: 'string',
+          description: 'Human-readable name for the domain',
+        },
+        description: {
+          type: 'string',
+          description: 'Purpose/scope of the domain',
+        },
+      },
+      required: ['id', 'name', 'description'],
+    },
+  },
+
   store_memory: {
     name: 'store_memory' as ToolName,
     description: `Store a new memory in the knowledge graph.
@@ -324,8 +372,54 @@ export class MemoryTools {
         return this.handleEditMemory(args as EditMemoryInput);
       case 'generate_mermaid_graph':
         return this.handleGenerateMermaidGraph(args as GenerateMermaidGraphInput);
+      case 'select_domain':
+        return this.handleSelectDomain(args as { id: string });
+      case 'list_domains':
+        return this.handleListDomains();
+      case 'create_domain':
+        return this.handleCreateDomain(args as { id: string; name: string; description: string });
       default:
         throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
+    }
+  }
+
+  private async handleSelectDomain(args: { id: string }): Promise<ToolResponse> {
+    try {
+      const domain = await this.graph.selectDomain(args.id);
+      return {
+        content: [{ type: 'text', text: JSON.stringify(domain, null, 2) }],
+      };
+    } catch (error) {
+      throw new McpError(ErrorCode.InvalidParams, `Failed to select domain: ${error}`);
+    }
+  }
+
+  private async handleListDomains(): Promise<ToolResponse> {
+    try {
+      const domains = await this.graph.listDomains();
+      const currentDomain = this.graph.getCurrentDomain();
+      
+      const result = {
+        domains,
+        currentDomain,
+      };
+      
+      return {
+        content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+      };
+    } catch (error) {
+      throw new McpError(ErrorCode.InternalError, `Failed to list domains: ${error}`);
+    }
+  }
+
+  private async handleCreateDomain(args: { id: string; name: string; description: string }): Promise<ToolResponse> {
+    try {
+      const domain = await this.graph.createDomain(args.id, args.name, args.description);
+      return {
+        content: [{ type: 'text', text: JSON.stringify(domain, null, 2) }],
+      };
+    } catch (error) {
+      throw new McpError(ErrorCode.InvalidParams, `Failed to create domain: ${error}`);
     }
   }
 
