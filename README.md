@@ -13,7 +13,9 @@ An MCP server that provides persistent memory capabilities through a local knowl
 - Flexible result sorting and relevance scoring
 - Persistent storage using local file system
 
-See [Memory Architecture](cline_docs/memoryArchitecture.md) for detailed documentation of the domain-based system.
+See [Memory Architecture](docs/memoryArchitecture.md) for detailed documentation of the domain-based system and use cases from both perspectives:
+- [Use Cases (Human Perspective)](docs/humanPerspectiveUseCases.md) - How humans can teach AI to use the Memory Graph
+- [Use Cases (AI Perspective)](docs/aiPerspectiveUseCases.md) - How AI implements Memory Graph operations
 
 ## Installation
 
@@ -296,7 +298,7 @@ memory-graph/
 │   ├── types/           # TypeScript type definitions
 │   └── index.ts         # Main server entry
 ├── data/               # Memory storage (created at runtime)
-└── cline_docs/         # Project documentation
+└── docs/              # Project documentation
 ```
 
 ## Memory Graph Structure
