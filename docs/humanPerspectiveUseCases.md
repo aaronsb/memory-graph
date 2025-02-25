@@ -96,6 +96,30 @@ Verify the AI has properly stored and connected this information by asking it to
 
 "What command do we use to test our changes locally?"
 
+#### 7. Alternative Approach: Learning by Doing (The Efficiently Lazy Method)
+
+For the creatively efficient (or is that efficiently lazy?) developers among us—you know who you are—here's a more hands-off approach that lets the AI do the heavy lifting:
+
+"Hey AI, implement this feature for me using our GitHub workflow. Create a branch, make the code changes, test it, and prep a PR."
+
+After the AI has done all the work (while you enjoy your coffee), simply ask it to document what it learned:
+
+"Now that you've done all that work, create a memory domain called 'github-workflow-experience' and document everything you just did. You're the one who did it, so you might as well remember it too!"
+
+This brilliantly lazy approach has several advantages:
+- The AI does the work AND takes the notes (efficiency at its finest)
+- The documented workflow reflects actual usage patterns (no theoretical nonsense)
+- You get to claim credit for being "efficiently resourceful" rather than "avoiding documentation"
+- Future-you will thank present-you for this stroke of genius
+
+When you need this information later, just ask:
+
+"Remember that time I cleverly had you implement that feature? What did you learn about our GitHub workflow?"
+
+This "I'll watch you do it" approach is perfect for those of us who believe the best learning happens through observation—especially when someone else is doing the work. Work smarter, not harder!
+
+*Note: I came up with this approach during what I like to call a "strategic thinking session" (others might call it "procrastinating on documentation"). You're welcome.*
+
 ## Personal Knowledge Management
 
 You can teach the AI to help organize your personal knowledge and learning. Here's how to guide it through this process.
