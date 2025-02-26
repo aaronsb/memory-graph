@@ -3,11 +3,46 @@ import {
   McpError,
 } from '@modelcontextprotocol/sdk/types.js';
 import { MemoryGraph } from '../graph/MemoryGraph.js';
-import { StoreMemoryInput, RecallMemoriesInput, ForgetMemoryInput, EditMemoryInput, GenerateMermaidGraphInput, DomainInfo } from '../types/graph.js';
+import { StoreMemoryInput, RecallMemoriesInput, ForgetMemoryInput, EditMemoryInput, GenerateMermaidGraphInput, DomainInfo, TraverseMemoriesInput, MemoryNode } from '../types/graph.js';
 import { MermaidGenerator } from '../graph/MermaidGenerator.js';
 import { ToolRequest, ToolResponse, ToolName } from '../types/mcp.js';
 
 export const MEMORY_TOOLS = {
+  traverse_memories: {
+    name: 'traverse_memories' as ToolName,
+    description: 'Traverse the memory graph following relationships and domain pointers',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        startNodeId: {
+          type: 'string',
+          description: 'Optional starting memory ID (uses recent memory if not specified)',
+        },
+        maxDepth: {
+          type: 'number',
+          description: 'Maximum depth of relationships to traverse',
+          minimum: 1,
+          maximum: 5,
+          default: 2,
+        },
+        followDomainPointers: {
+          type: 'boolean',
+          description: 'Whether to follow connections across domains',
+          default: true,
+        },
+        targetDomain: {
+          type: 'string',
+          description: 'Optional specific domain to traverse',
+        },
+        maxNodesPerDomain: {
+          type: 'number',
+          description: 'Maximum number of nodes to return per domain',
+          default: 20,
+        },
+      },
+      required: [],
+    },
+  },
   select_domain: {
     name: 'select_domain' as ToolName,
     description: 'Switch to a different memory domain. This will load the memories from the specified domain and make it the active context for all memory operations.',
@@ -285,12 +320,17 @@ Best Practices:
    * supports: Reinforcing relationships
    * synthesizes: Combined insights
    * refines: Clarifications/improvements
+5. Use followDomainPointers to visualize cross-domain connections:
+   * Set to true to follow references to other domains
+   * Cross-domain connections shown with dashed lines
+   * Nodes from different domains have different background colors
 
 The generated graph shows:
 - Nodes: Individual memories (content truncated for readability)
 - Edges: Labeled relationships with types
 - Direction: Specified flow of relationships
-- Strength: Only relationships meeting minStrength threshold`,
+- Strength: Only relationships meeting minStrength threshold
+- Domains: Nodes from different domains have distinct visual styles`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -321,6 +361,10 @@ The generated graph shows:
           description: 'Minimum relationship strength to include (0-1)',
           minimum: 0,
           maximum: 1,
+        },
+        followDomainPointers: {
+          type: 'boolean',
+          description: 'Whether to follow connections across domains (default: true)',
         },
         contentFormat: {
           type: 'object',
@@ -372,6 +416,8 @@ export class MemoryTools {
         return this.handleEditMemory(args as EditMemoryInput);
       case 'generate_mermaid_graph':
         return this.handleGenerateMermaidGraph(args as GenerateMermaidGraphInput);
+      case 'traverse_memories':
+        return this.handleTraverseMemories(args as TraverseMemoriesInput);
       case 'select_domain':
         return this.handleSelectDomain(args as { id: string });
       case 'list_domains':
@@ -380,6 +426,129 @@ export class MemoryTools {
         return this.handleCreateDomain(args as { id: string; name: string; description: string });
       default:
         throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
+    }
+  }
+
+  private async handleTraverseMemories(args: TraverseMemoriesInput): Promise<ToolResponse> {
+    try {
+      const result = await this.graph.traverseMemories(args);
+      
+      // Format the output in a narrative, hierarchical text format
+      let output = '# Memory Graph Traversal\n\n';
+      
+      // Add traversal context
+      output += `## Context\n\n`;
+      output += `- Starting Point: ${result.context.startingPoint}\n`;
+      output += `- Traversal Depth: ${result.context.depth}\n`;
+      output += `- Domains Visited: ${result.context.domains.join(', ')}\n\n`;
+      
+      // Add nodes by domain
+      const nodesByDomain = new Map<string, MemoryNode[]>();
+      
+      for (const node of result.nodes) {
+        // Find which domain this node belongs to
+        let nodeDomain = 'unknown';
+        
+        for (const domain of result.context.domains) {
+          if (result.crossDomainConnections.some(conn => 
+            (conn.fromDomain === domain && conn.fromNodeId === node.id) ||
+            (conn.toDomain === domain && conn.toNodeId === node.id)
+          )) {
+            nodeDomain = domain;
+            break;
+          }
+        }
+        
+        // If we couldn't determine the domain from connections, use the current domain
+        if (nodeDomain === 'unknown') {
+          nodeDomain = this.graph.getCurrentDomain();
+        }
+        
+        // Add to the map
+        if (!nodesByDomain.has(nodeDomain)) {
+          nodesByDomain.set(nodeDomain, []);
+        }
+        nodesByDomain.get(nodeDomain)!.push(node);
+      }
+      
+      // Output nodes by domain
+      for (const [domain, nodes] of nodesByDomain.entries()) {
+        output += `## Domain: ${domain}\n\n`;
+        
+        for (const node of nodes) {
+          output += `### Memory ${node.id}\n\n`;
+          output += `${node.content}\n\n`;
+          
+          // Add timestamp and path
+          output += `*Created: ${new Date(node.timestamp).toLocaleString()}*\n`;
+          if (node.path) {
+            output += `*Path: ${node.path}*\n`;
+          }
+          if (node.tags && node.tags.length > 0) {
+            output += `*Tags: ${node.tags.join(', ')}*\n`;
+          }
+          
+          // Add connections
+          const incomingEdges = result.edges.filter(e => e.target === node.id);
+          const outgoingEdges = result.edges.filter(e => e.source === node.id);
+          
+          if (incomingEdges.length > 0) {
+            output += `\n#### Incoming Connections\n\n`;
+            for (const edge of incomingEdges) {
+              const sourceNode = result.nodes.find(n => n.id === edge.source);
+              if (sourceNode) {
+                output += `- **${edge.type}** (strength: ${edge.strength.toFixed(2)}) from Memory ${edge.source}\n`;
+                output += `  *"${sourceNode.content.substring(0, 100)}${sourceNode.content.length > 100 ? '...' : ''}"*\n\n`;
+              }
+            }
+          }
+          
+          if (outgoingEdges.length > 0) {
+            output += `\n#### Outgoing Connections\n\n`;
+            for (const edge of outgoingEdges) {
+              const targetNode = result.nodes.find(n => n.id === edge.target);
+              if (targetNode) {
+                output += `- **${edge.type}** (strength: ${edge.strength.toFixed(2)}) to Memory ${edge.target}\n`;
+                output += `  *"${targetNode.content.substring(0, 100)}${targetNode.content.length > 100 ? '...' : ''}"*\n\n`;
+              }
+            }
+          }
+          
+          // Add cross-domain connections
+          const crossDomainFrom = result.crossDomainConnections.filter(c => c.fromNodeId === node.id);
+          const crossDomainTo = result.crossDomainConnections.filter(c => c.toNodeId === node.id);
+          
+          if (crossDomainFrom.length > 0 || crossDomainTo.length > 0) {
+            output += `\n#### Cross-Domain Connections\n\n`;
+            
+            for (const conn of crossDomainFrom) {
+              output += `- **→ Points to** domain "${conn.toDomain}" (memory ${conn.toNodeId})`;
+              if (conn.description) {
+                output += `: ${conn.description}`;
+              }
+              output += `\n`;
+            }
+            
+            for (const conn of crossDomainTo) {
+              output += `- **← Referenced from** domain "${conn.fromDomain}" (memory ${conn.fromNodeId})`;
+              if (conn.description) {
+                output += `: ${conn.description}`;
+              }
+              output += `\n`;
+            }
+            
+            output += `\n`;
+          }
+          
+          output += `---\n\n`;
+        }
+      }
+      
+      return {
+        content: [{ type: 'text', text: output }],
+      };
+    } catch (error) {
+      throw new McpError(ErrorCode.InternalError, `Failed to traverse memories: ${error}`);
     }
   }
 
@@ -476,10 +645,11 @@ export class MemoryTools {
     }
   }
 
-  private handleGenerateMermaidGraph(args: GenerateMermaidGraphInput): ToolResponse {
+  private async handleGenerateMermaidGraph(args: GenerateMermaidGraphInput): Promise<ToolResponse> {
     try {
-      const generator = new MermaidGenerator(this.graph['nodes'], this.graph['edges']);
-      const mermaid = generator.generateGraph(args);
+      // Pass the MemoryGraph instance to the MermaidGenerator
+      const generator = new MermaidGenerator(this.graph['nodes'], this.graph['edges'], this.graph);
+      const mermaid = await generator.generateGraph(args);
       return {
         content: [{ type: 'text', text: mermaid }],
       };
