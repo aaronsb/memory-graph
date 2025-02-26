@@ -13,7 +13,10 @@ import {
   Relationship,
   MatchDetails,
   DomainInfo,
-  PersistenceState
+  PersistenceState,
+  DomainRef,
+  DomainPointer,
+  TraverseMemoriesInput
 } from '../types/graph.js';
 
 export class MemoryGraph {
@@ -227,6 +230,120 @@ export class MemoryGraph {
     return this.currentDomain;
   }
 
+  /**
+   * Find the best entry point in a target domain
+   * If no entry point is specified, use the most recent memory in the target domain
+   */
+  private async findDomainEntryPoint(domainId: string): Promise<string | null> {
+    // Save current state
+    const currentDomainId = this.currentDomain;
+    
+    try {
+      // Temporarily switch to target domain
+      await this.selectDomain(domainId);
+      
+      // Find the most recent memory in the domain
+      if (this.nodes.size === 0) {
+        return null;
+      }
+      
+      const sortedNodes = Array.from(this.nodes.values())
+        .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+      
+      return sortedNodes[0].id;
+    } catch (error) {
+      console.error(`Error finding entry point in domain ${domainId}:`, error);
+      return null;
+    } finally {
+      // Switch back to original domain
+      if (currentDomainId !== domainId) {
+        await this.selectDomain(currentDomainId);
+      }
+    }
+  }
+
+  /**
+   * Create a cross-domain reference
+   */
+  private async createDomainReference(
+    sourceNodeId: string, 
+    targetDomain: string, 
+    targetNodeId: string | undefined,
+    bidirectional: boolean,
+    description?: string
+  ): Promise<DomainRef | null> {
+    // Validate target domain exists
+    if (!this.domains.has(targetDomain)) {
+      console.error(`Target domain does not exist: ${targetDomain}`);
+      return null;
+    }
+    
+    // Find entry point if not specified
+    let entryPointId = targetNodeId;
+    if (!entryPointId) {
+      const foundEntryPoint = await this.findDomainEntryPoint(targetDomain);
+      if (!foundEntryPoint) {
+        console.error(`Could not find entry point in domain: ${targetDomain}`);
+        return null;
+      }
+      entryPointId = foundEntryPoint;
+    }
+    
+    // Create domain reference
+    const domainRef: DomainRef = {
+      domain: targetDomain,
+      nodeId: entryPointId,
+      description,
+      bidirectional
+    };
+    
+    // If bidirectional, create the reverse reference
+    if (bidirectional) {
+      const currentDomainId = this.currentDomain;
+      const sourceNode = this.nodes.get(sourceNodeId);
+      
+      if (sourceNode) {
+        try {
+          // Switch to target domain
+          await this.selectDomain(targetDomain);
+          
+          // Get target node
+          const targetNode = this.nodes.get(entryPointId);
+          
+          if (targetNode) {
+            // Add reverse reference
+            if (!targetNode.domainRefs) {
+              targetNode.domainRefs = [];
+            }
+            
+            // Check if reference already exists
+            const existingRefIndex = targetNode.domainRefs.findIndex(
+              ref => ref.domain === currentDomainId && ref.nodeId === sourceNodeId
+            );
+            
+            if (existingRefIndex === -1) {
+              targetNode.domainRefs.push({
+                domain: currentDomainId,
+                nodeId: sourceNodeId,
+                description: `Bidirectional reference to ${sourceNode.content.substring(0, 50)}${sourceNode.content.length > 50 ? '...' : ''}`,
+                bidirectional: true
+              });
+              
+              await this.save();
+            }
+          }
+        } catch (error) {
+          console.error(`Error creating bidirectional reference:`, error);
+        } finally {
+          // Switch back to original domain
+          await this.selectDomain(currentDomainId);
+        }
+      }
+    }
+    
+    return domainRef;
+  }
+
   async storeMemory(input: StoreMemoryInput): Promise<MemoryNode> {
     const node: MemoryNode = {
       id: this.generateId(),
@@ -234,8 +351,28 @@ export class MemoryGraph {
       timestamp: new Date().toISOString(),
       path: input.path || this.config.defaultPath || '/',
       tags: input.tags,
-      domainRefs: input.domainRefs
+      domainRefs: input.domainRefs ? [...input.domainRefs] : undefined
     };
+
+    // Handle domain pointer if provided
+    if (input.domainPointer) {
+      const { domain, entryPointId, bidirectional, description } = input.domainPointer;
+      
+      const domainRef = await this.createDomainReference(
+        node.id,
+        domain,
+        entryPointId,
+        bidirectional,
+        description
+      );
+      
+      if (domainRef) {
+        if (!node.domainRefs) {
+          node.domainRefs = [];
+        }
+        node.domainRefs.push(domainRef);
+      }
+    }
 
     this.nodes.set(node.id, node);
 
@@ -608,5 +745,186 @@ export class MemoryGraph {
 
     await this.save();
     return node;
+  }
+
+  /**
+   * Traverse the memory graph following relationships and domain pointers
+   */
+  async traverseMemories(input: TraverseMemoriesInput): Promise<{
+    nodes: MemoryNode[];
+    edges: GraphEdge[];
+    crossDomainConnections: {
+      fromDomain: string;
+      fromNodeId: string;
+      toDomain: string;
+      toNodeId: string;
+      description?: string;
+    }[];
+    context: {
+      startingPoint: string;
+      depth: number;
+      domains: string[];
+    };
+  }> {
+    // Default values
+    const maxDepth = input.maxDepth || 2;
+    const followDomainPointers = input.followDomainPointers !== false; // Default to true
+    const maxNodesPerDomain = input.maxNodesPerDomain || 20;
+    
+    // Get starting node
+    let startNodeId = input.startNodeId;
+    if (!startNodeId) {
+      // Use most recent memory if no starting point specified
+      const recentNodes = Array.from(this.nodes.values())
+        .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+      
+      if (recentNodes.length === 0) {
+        throw new Error('No memories found in current domain');
+      }
+      
+      startNodeId = recentNodes[0].id;
+    }
+    
+    const startNode = this.nodes.get(startNodeId);
+    if (!startNode) {
+      throw new Error(`Starting memory not found: ${startNodeId}`);
+    }
+    
+    // Track visited nodes to prevent cycles
+    const visited = new Set<string>();
+    const visitedByDomain = new Map<string, Set<string>>();
+    visitedByDomain.set(this.currentDomain, new Set<string>());
+    
+    // Track results
+    const resultNodes: MemoryNode[] = [];
+    const resultEdges: GraphEdge[] = [];
+    const crossDomainConnections: {
+      fromDomain: string;
+      fromNodeId: string;
+      toDomain: string;
+      toNodeId: string;
+      description?: string;
+    }[] = [];
+    
+    // Track domains visited
+    const domainsVisited = new Set<string>([this.currentDomain]);
+    
+    // BFS queue with [nodeId, domain, depth]
+    const queue: [string, string, number][] = [[startNodeId, this.currentDomain, 0]];
+    
+    // Remember original domain to switch back at the end
+    const originalDomain = this.currentDomain;
+    
+    try {
+      while (queue.length > 0) {
+        const [currentId, currentDomain, depth] = queue.shift()!;
+        
+        // Skip if we've visited this node already
+        if (visited.has(`${currentDomain}:${currentId}`)) {
+          continue;
+        }
+        
+        // Skip if we've reached max nodes for this domain
+        const domainVisited = visitedByDomain.get(currentDomain) || new Set<string>();
+        if (domainVisited.size >= maxNodesPerDomain) {
+          continue;
+        }
+        
+        // Skip if we're only interested in a specific domain
+        if (input.targetDomain && currentDomain !== input.targetDomain) {
+          continue;
+        }
+        
+        // Mark as visited
+        visited.add(`${currentDomain}:${currentId}`);
+        domainVisited.add(currentId);
+        visitedByDomain.set(currentDomain, domainVisited);
+        
+        // Switch to the current domain if needed
+        if (currentDomain !== this.currentDomain) {
+          await this.selectDomain(currentDomain);
+        }
+        
+        // Get the node
+        const node = this.nodes.get(currentId);
+        if (!node) {
+          continue; // Skip if node doesn't exist
+        }
+        
+        // Add to results
+        resultNodes.push(node);
+        
+        // Stop traversing deeper if we've reached max depth
+        if (depth >= maxDepth) {
+          continue;
+        }
+        
+        // Get edges for this node
+        const nodeEdges = this.getNodeEdges(currentId);
+        
+        // Add edges to results
+        for (const edge of nodeEdges) {
+          resultEdges.push(edge);
+          
+          // Add connected nodes to queue
+          const nextId = edge.target === currentId ? edge.source : edge.target;
+          if (!domainVisited.has(nextId)) {
+            queue.push([nextId, currentDomain, depth + 1]);
+          }
+        }
+        
+        // Follow domain pointers if enabled
+        if (followDomainPointers && node.domainRefs && node.domainRefs.length > 0) {
+          for (const domainRef of node.domainRefs) {
+            // Skip if we've already visited too many nodes in the target domain
+            const targetDomainVisited = visitedByDomain.get(domainRef.domain) || new Set<string>();
+            if (targetDomainVisited.size >= maxNodesPerDomain) {
+              continue;
+            }
+            
+            // Skip if we're only interested in a specific domain
+            if (input.targetDomain && domainRef.domain !== input.targetDomain) {
+              continue;
+            }
+            
+            // Add to cross-domain connections
+            crossDomainConnections.push({
+              fromDomain: currentDomain,
+              fromNodeId: currentId,
+              toDomain: domainRef.domain,
+              toNodeId: domainRef.nodeId,
+              description: domainRef.description
+            });
+            
+            // Add target domain to visited domains
+            domainsVisited.add(domainRef.domain);
+            
+            // Initialize visited set for target domain if needed
+            if (!visitedByDomain.has(domainRef.domain)) {
+              visitedByDomain.set(domainRef.domain, new Set<string>());
+            }
+            
+            // Add target node to queue
+            queue.push([domainRef.nodeId, domainRef.domain, depth + 1]);
+          }
+        }
+      }
+    } finally {
+      // Switch back to original domain
+      if (this.currentDomain !== originalDomain) {
+        await this.selectDomain(originalDomain);
+      }
+    }
+    
+    return {
+      nodes: resultNodes,
+      edges: resultEdges,
+      crossDomainConnections,
+      context: {
+        startingPoint: startNodeId,
+        depth: maxDepth,
+        domains: Array.from(domainsVisited)
+      }
+    };
   }
 }

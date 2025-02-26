@@ -16,6 +16,14 @@ export interface DomainRef {
   domain: string;
   nodeId: string;
   description?: string;
+  bidirectional?: boolean;
+}
+
+export interface DomainPointer {
+  domain: string;
+  entryPointId?: string;  // Optional - system finds best entry point if not specified
+  bidirectional: boolean; // Default to true
+  description?: string;
 }
 
 export interface MemoryNode {
@@ -54,6 +62,7 @@ export interface StoreMemoryInput {
     [type: string]: Relationship[];
   };
   domainRefs?: DomainRef[];
+  domainPointer?: DomainPointer;
 }
 
 export type RecallStrategy = 'recent' | 'related' | 'path' | 'tag' | 'content';
@@ -113,6 +122,14 @@ export interface GenerateMermaidGraphInput {
   relationshipTypes?: string[];
   minStrength?: number;
   contentFormat?: MermaidContentFormat;
+}
+
+export interface TraverseMemoriesInput {
+  startNodeId?: string;
+  maxDepth?: number;
+  followDomainPointers?: boolean;
+  targetDomain?: string;
+  maxNodesPerDomain?: number;
 }
 
 export interface RecallResult {
