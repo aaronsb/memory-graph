@@ -92,6 +92,7 @@ The server can be configured using environment variables:
 - `MEMORY_FILES`: Comma-separated list of specific memory files to use
 - `LOAD_ALL_FILES`: Set to 'true' to load all JSON files in the storage directory
 - `DEFAULT_PATH`: Default path for storing memories
+- `STORAGE_TYPE`: Storage backend to use (`json` or `sqlite`, default: `json`)
 
 #### MCP Configuration
 
@@ -106,7 +107,8 @@ To use this server with Claude, add it to your MCP configuration file (e.g. `cla
       "env": {
         "MEMORY_DIR": "/path/to/memory/storage",
         "LOAD_ALL_FILES": "true",
-        "DEFAULT_PATH": "/memories"
+        "DEFAULT_PATH": "/memories",
+        "STORAGE_TYPE": "sqlite"
       },
       "disabled": false,
       "autoApprove": []
@@ -122,6 +124,43 @@ Configuration options:
   - See environment variables section above for available options
 - `disabled`: Whether the server is disabled (default: false)
 - `autoApprove`: Array of tool names that can be auto-approved (default: empty)
+
+### Storage Backends
+
+The memory-graph server supports two storage backends:
+
+#### JSON Storage (Default)
+
+- Simple file-based storage using JSON files
+- Each domain stored in a separate file
+- Good for small to medium memory collections
+- Easy to inspect and modify manually
+- No additional dependencies required
+
+#### SQLite Storage
+
+- Robust database storage using SQLite
+- All domains stored in a single database file
+- Better performance for large memory collections
+- Advanced full-text search capabilities
+- Improved data integrity and reliability
+- Requires SQLite library (included in dependencies)
+
+To switch between storage backends, set the `STORAGE_TYPE` environment variable to either `json` or `sqlite`.
+
+### Converting Between Storage Formats
+
+A conversion utility is provided to migrate between storage formats:
+
+```bash
+# Convert from JSON to SQLite
+node build/scripts/convert-storage.js --from json --to sqlite --dir /path/to/data
+
+# Convert from SQLite to JSON
+node build/scripts/convert-storage.js --from sqlite --to json --dir /path/to/data
+```
+
+This utility preserves all memories, domains, and relationships during conversion.
 
 #### Memory File Initialization
 
@@ -155,21 +194,32 @@ This initialization behavior ensures that:
    - Loads memories from the specified domain
    - Makes it the active context for all memory operations
    - Automatically saves current state before switching
+   
+2. `search_memory_content`
+   - Search memory content using full-text search capabilities
+   - Required: query (search query text)
+   - Optional: domain (restrict search to specific domain)
+   - Optional: maxResults (maximum number of results to return)
+   - Features:
+     * SQLite backend: Uses FTS5 extension for efficient full-text search
+     * JSON backend: Uses in-memory search with basic text matching
+     * Supports advanced search syntax with SQLite backend
+     * Returns formatted results with memory content and metadata
 
-2. `list_domains`
+3. `list_domains`
    - List all available memory domains with their metadata
    - Returns current domain and list of all domains
    - Includes creation and last access timestamps
    - No required parameters
 
-3. `create_domain`
+4. `create_domain`
    - Create a new memory domain
    - Required: id, name, description
    - Creates domain entry and initializes empty memory file
    - Validates domain ID uniqueness
    - Returns domain info
 
-4. `store_memory`
+5. `store_memory`
    - Store new information in the memory graph
    - Required: content
    - Optional: path, tags, relationships (with strength 0-1)
@@ -178,7 +228,7 @@ This initialization behavior ensures that:
      * Focus on clear, significant patterns across multiple memories
      * Avoid abstract memories that don't add concrete value
 
-2. `recall_memories`
+6. `recall_memories`
    - Retrieve memories using various strategies
    - Required: maxNodes, strategy
    - Dreaming Guidelines:
@@ -209,7 +259,7 @@ This initialization behavior ensures that:
      * sortBy: Sort results by 'relevance', 'date', or 'strength'
      * matchDetails: Get highlighted matches with positions
 
-3. `edit_memory`
+7. `edit_memory`
    - Edit an existing memory's content and relationships
    - Required: id
    - Optional: content, relationships (with strength 0-1)
@@ -221,7 +271,7 @@ This initialization behavior ensures that:
      * Don't over-edit or force connections
      * Allow memories to retain unique perspectives
 
-4. `forget_memory`
+8. `forget_memory`
    - Remove a memory from the graph
    - Required: id
    - Optional: cascade (remove connected memories)
@@ -231,7 +281,7 @@ This initialization behavior ensures that:
      * When in doubt, preserve the memory
      * Never remove memories just because they seem less important
 
-5. `generate_mermaid_graph`
+9. `generate_mermaid_graph`
    - Generate a Mermaid flowchart visualization of memory relationships
    - Prerequisites:
      * Use recall_memories first to get valid memory IDs using strategies:
@@ -274,12 +324,32 @@ This initialization behavior ensures that:
          node1 -->|relates_to| node2
      ```
 
+10. `traverse_memories`
+    - Traverse the memory graph following relationships and domain pointers
+    - Optional: startNodeId (uses most recent memory if not specified)
+    - Optional: maxDepth (maximum depth of relationships to traverse)
+    - Optional: followDomainPointers (whether to follow connections across domains)
+    - Optional: targetDomain (specific domain to traverse)
+    - Optional: maxNodesPerDomain (maximum number of nodes to return per domain)
+    - Returns hierarchical view of connected memories with relationship details
+    - Includes cross-domain connections and metadata
+
 ## Development
 
 ### Building
 
 ```bash
 npm run build
+```
+
+### Running Locally for Development
+
+```bash
+# Run with JSON storage
+npm run dev
+
+# Run with SQLite storage
+STORAGE_TYPE=sqlite npm run dev
 ```
 
 ### Testing

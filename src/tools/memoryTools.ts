@@ -43,6 +43,30 @@ export const MEMORY_TOOLS = {
       required: [],
     },
   },
+  
+  search_memory_content: {
+    name: 'search_memory_content' as ToolName,
+    description: 'Search memory content using full-text search capabilities',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description: 'Search query text (supports advanced search syntax)',
+        },
+        domain: {
+          type: 'string',
+          description: 'Optional domain to restrict search to',
+        },
+        maxResults: {
+          type: 'number',
+          description: 'Maximum number of results to return',
+          default: 20,
+        },
+      },
+      required: ['query'],
+    },
+  },
   select_domain: {
     name: 'select_domain' as ToolName,
     description: 'Switch to a different memory domain. This will load the memories from the specified domain and make it the active context for all memory operations.',
@@ -424,8 +448,60 @@ export class MemoryTools {
         return this.handleListDomains();
       case 'create_domain':
         return this.handleCreateDomain(args as { id: string; name: string; description: string });
+      case 'search_memory_content':
+        return this.handleSearchMemoryContent(args as { query: string; domain?: string; maxResults?: number });
       default:
         throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
+    }
+  }
+
+  private async handleSearchMemoryContent(args: { query: string; domain?: string; maxResults?: number }): Promise<ToolResponse> {
+    try {
+      const results = await this.graph.searchContent(args.query, args.domain, args.maxResults);
+      
+      // Format the results in a more readable way
+      let output = `# Search Results for "${args.query}"\n\n`;
+      
+      if (results.length === 0) {
+        output += "No matching memories found.\n";
+      } else {
+        output += `Found ${results.length} matching memories:\n\n`;
+        
+        for (let i = 0; i < results.length; i++) {
+          const result = results[i];
+          const node = result.node;
+          
+          output += `## Memory ${i+1}: ${node.id}\n\n`;
+          output += `${node.content}\n\n`;
+          
+          // Add metadata
+          output += `*Created: ${new Date(node.timestamp).toLocaleString()}*\n`;
+          if (node.path) {
+            output += `*Path: ${node.path}*\n`;
+          }
+          if (node.tags && node.tags.length > 0) {
+            output += `*Tags: ${node.tags.join(', ')}*\n`;
+          }
+          
+          // Add connections if any
+          if (result.edges.length > 0) {
+            output += `\n### Connections\n\n`;
+            for (const edge of result.edges) {
+              const isOutgoing = edge.source === node.id;
+              const otherNodeId = isOutgoing ? edge.target : edge.source;
+              output += `- ${isOutgoing ? 'To' : 'From'} ${otherNodeId}: ${edge.type} (strength: ${edge.strength.toFixed(2)})\n`;
+            }
+          }
+          
+          output += `\n---\n\n`;
+        }
+      }
+      
+      return {
+        content: [{ type: 'text', text: output }],
+      };
+    } catch (error) {
+      throw new McpError(ErrorCode.InternalError, `Failed to search memory content: ${error}`);
     }
   }
 
