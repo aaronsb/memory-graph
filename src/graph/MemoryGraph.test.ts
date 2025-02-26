@@ -174,16 +174,26 @@ describe('MemoryGraph', () => {
     await fs.rm(testStoragePath, { recursive: true, force: true });
   });
 
-  describe('initialization', () => {
-    it('should create domain memory files if they do not exist', async () => {
+  describe('JSON Storage Initialization', () => {
+    it('should initialize with empty JSON storage', async () => {
       const graph = new MemoryGraph({
         storageDir: testStoragePath,
-        defaultPath: '/'
+        defaultPath: '/',
+        storageType: 'json' // Explicitly use JSON storage for this test
       });
 
       await graph.initialize();
       
-      // Check memories directory was created
+      // Verify domain exists
+      const domains = await graph.listDomains();
+      expect(domains).toHaveLength(1);
+      expect(domains[0].id).toBe('general');
+      
+      // Verify no memories exist yet
+      const results = await graph.recallMemories({ maxNodes: 10, strategy: 'recent' });
+      expect(results).toHaveLength(0);
+      
+      // Check JSON-specific implementation details
       const memoriesDir = path.join(testStoragePath, 'memories');
       const dirExists = await fs.access(memoriesDir).then(() => true).catch(() => false);
       expect(dirExists).toBe(true);
@@ -199,25 +209,76 @@ describe('MemoryGraph', () => {
       expect(data).toEqual({ nodes: {}, edges: [] });
     });
 
-    it('should load existing domain memory file', async () => {
-      // Create memories directory
-      const memoriesDir = path.join(testStoragePath, 'memories');
-      await fs.mkdir(memoriesDir, { recursive: true });
-
-      // Create test data in general domain
-      const generalFile = path.join(memoriesDir, 'general.json');
-      const testData = {
-        nodes: {
-          "1": { id: "1", content: "test1", timestamp: new Date().toISOString() }
-        },
-        edges: []
-      };
+    it('should load existing domain memory data from JSON storage', async () => {
+      // First create a graph and store a memory
+      const initialGraph = new MemoryGraph({
+        storageDir: testStoragePath,
+        defaultPath: '/',
+        storageType: 'json'
+      });
       
-      await fs.writeFile(generalFile, JSON.stringify(testData));
-
+      await initialGraph.initialize();
+      await initialGraph.storeMemory({
+        content: "test1"
+      });
+      
+      // Now create a new graph instance to test loading
       const graph = new MemoryGraph({
         storageDir: testStoragePath,
-        defaultPath: '/'
+        defaultPath: '/',
+        storageType: 'json'
+      });
+
+      await graph.initialize();
+      const results = await graph.recallMemories({ maxNodes: 10, strategy: 'recent' });
+      expect(results).toHaveLength(1);
+      expect(results[0].node.content).toBe('test1');
+    });
+  });
+
+  describe('SQLite Storage Initialization', () => {
+    it('should initialize with empty SQLite storage', async () => {
+      const graph = new MemoryGraph({
+        storageDir: testStoragePath,
+        defaultPath: '/',
+        storageType: 'sqlite' // Explicitly use SQLite storage for this test
+      });
+
+      await graph.initialize();
+      
+      // Verify domain exists
+      const domains = await graph.listDomains();
+      expect(domains).toHaveLength(1);
+      expect(domains[0].id).toBe('general');
+      
+      // Verify no memories exist yet
+      const results = await graph.recallMemories({ maxNodes: 10, strategy: 'recent' });
+      expect(results).toHaveLength(0);
+      
+      // Check SQLite-specific implementation details
+      const dbFile = path.join(testStoragePath, 'memory-graph.db');
+      const dbExists = await fs.access(dbFile).then(() => true).catch(() => false);
+      expect(dbExists).toBe(true);
+    });
+
+    it('should load existing domain memory data from SQLite storage', async () => {
+      // First create a graph and store a memory
+      const initialGraph = new MemoryGraph({
+        storageDir: testStoragePath,
+        defaultPath: '/',
+        storageType: 'sqlite'
+      });
+      
+      await initialGraph.initialize();
+      await initialGraph.storeMemory({
+        content: "test1"
+      });
+      
+      // Now create a new graph instance to test loading
+      const graph = new MemoryGraph({
+        storageDir: testStoragePath,
+        defaultPath: '/',
+        storageType: 'sqlite'
       });
 
       await graph.initialize();
