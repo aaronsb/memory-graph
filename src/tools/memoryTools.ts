@@ -320,12 +320,17 @@ Best Practices:
    * supports: Reinforcing relationships
    * synthesizes: Combined insights
    * refines: Clarifications/improvements
+5. Use followDomainPointers to visualize cross-domain connections:
+   * Set to true to follow references to other domains
+   * Cross-domain connections shown with dashed lines
+   * Nodes from different domains have different background colors
 
 The generated graph shows:
 - Nodes: Individual memories (content truncated for readability)
 - Edges: Labeled relationships with types
 - Direction: Specified flow of relationships
-- Strength: Only relationships meeting minStrength threshold`,
+- Strength: Only relationships meeting minStrength threshold
+- Domains: Nodes from different domains have distinct visual styles`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -356,6 +361,10 @@ The generated graph shows:
           description: 'Minimum relationship strength to include (0-1)',
           minimum: 0,
           maximum: 1,
+        },
+        followDomainPointers: {
+          type: 'boolean',
+          description: 'Whether to follow connections across domains (default: true)',
         },
         contentFormat: {
           type: 'object',
@@ -636,10 +645,11 @@ export class MemoryTools {
     }
   }
 
-  private handleGenerateMermaidGraph(args: GenerateMermaidGraphInput): ToolResponse {
+  private async handleGenerateMermaidGraph(args: GenerateMermaidGraphInput): Promise<ToolResponse> {
     try {
-      const generator = new MermaidGenerator(this.graph['nodes'], this.graph['edges']);
-      const mermaid = generator.generateGraph(args);
+      // Pass the MemoryGraph instance to the MermaidGenerator
+      const generator = new MermaidGenerator(this.graph['nodes'], this.graph['edges'], this.graph);
+      const mermaid = await generator.generateGraph(args);
       return {
         content: [{ type: 'text', text: mermaid }],
       };

@@ -122,6 +122,7 @@ export interface GenerateMermaidGraphInput {
   relationshipTypes?: string[];
   minStrength?: number;
   contentFormat?: MermaidContentFormat;
+  followDomainPointers?: boolean; // New option to follow domain references
 }
 
 export interface TraverseMemoriesInput {
