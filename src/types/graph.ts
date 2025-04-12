@@ -47,6 +47,7 @@ export interface MemoryGraphConfig {
   storageDir: string;
   defaultPath?: string;
   defaultDomain?: string;
+  storageType?: string; // 'json' or 'sqlite'
 }
 
 export interface Relationship {

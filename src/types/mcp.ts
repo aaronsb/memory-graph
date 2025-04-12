@@ -10,7 +10,8 @@ export type ToolName =
   | 'traverse_memories'
   | 'select_domain'
   | 'list_domains'
-  | 'create_domain';
+  | 'create_domain'
+  | 'search_memory_content';
 
 export type ToolArgumentType = {
   'store_memory': StoreMemoryInput;
@@ -22,6 +23,7 @@ export type ToolArgumentType = {
   'select_domain': { id: string };
   'list_domains': Record<string, never>;
   'create_domain': { id: string; name: string; description: string };
+  'search_memory_content': { query: string; domain?: string; maxResults?: number };
 };
 
 export interface ToolRequest {

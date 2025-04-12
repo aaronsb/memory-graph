@@ -144,4 +144,53 @@ Develop tests after working out the operating principle of the feature improveme
 2. Ensure the traverse_memories tool provides a distinct value compared to recall_memories
 3. Preserve full memory content and relationships in the traversal output
 4. Use actual memory IDs for precise reference while providing human-readable context
-5. Defer memory indexing improvements until transitioning to a SQLite-based storage approach
+
+## 5. SQLite Storage Implementation
+
+### Overview
+Implement a SQLite-based storage backend as an alternative to the current JSON file-based storage system. This will provide better performance, scalability, and query capabilities, especially for large memory graphs.
+
+### Tasks
+
+- [x] **Design SQLite Schema**
+  - [x] Create comprehensive design document (`docs/sqlite-storage-design.md`)
+  - [x] Define table structure for domains, nodes, edges, and cross-domain references
+  - [x] Design indexes for efficient querying
+  - [x] Implement full-text search capabilities
+
+- [x] **Create Storage Interface**
+  - [x] Define abstract `MemoryStorage` interface
+  - [x] Implement `JsonMemoryStorage` class
+  - [x] Implement `SqliteMemoryStorage` class
+  - [x] Create `StorageFactory` for easy switching between backends
+
+- [x] **Add Configuration Options**
+  - [x] Update `MemoryGraphConfig` to include storage type
+  - [x] Add environment variable support for storage configuration
+
+- [x] **Create Conversion Utility**
+  - [x] Implement JSON to SQLite converter
+  - [x] Implement SQLite to JSON converter
+  - [x] Add command-line interface for conversion
+
+- [ ] **Add Full-Text Search Tool**
+  - [x] Define `search_memory_content` tool in `MEMORY_TOOLS`
+  - [x] Update `ToolName` and `ToolArgumentType` in `mcp.ts`
+  - [ ] Implement `searchContent` method in `MemoryGraph`
+  - [ ] Implement handler in `MemoryTools`
+
+- [ ] **Update MemoryGraph Implementation**
+  - [ ] Refactor `MemoryGraph` to use storage interface
+  - [ ] Add storage type selection based on configuration
+  - [ ] Ensure backward compatibility with existing code
+
+- [ ] **Testing**
+  - [ ] Write unit tests for storage implementations
+  - [ ] Test conversion between storage formats
+  - [ ] Test full-text search capabilities
+  - [ ] Benchmark performance comparison
+
+- [ ] **Documentation**
+  - [ ] Update README with storage configuration options
+  - [ ] Document full-text search capabilities
+  - [ ] Add examples of SQLite usage
