@@ -131,26 +131,27 @@ export class MemoryResources {
     try {
       const db = await this.getDatabase();
       
-      // Query to get popular tags (top 10%)
+      // First check if there are any tags at all
+      const countQuery = `SELECT COUNT(*) as count FROM MEMORY_TAGS`;
+      const countResult = await db.get(countQuery);
+      
+      if (countResult.count === 0) {
+        // No tags available
+        return {
+          popularTags: [],
+          message: "No tags available in the memory graph"
+        };
+      }
+      
+      // Query to get popular tags (top 10 or all if less than 10)
       const query = `
-        WITH TagCounts AS (
-          SELECT 
-            tag, 
-            COUNT(*) AS frequency
-          FROM MEMORY_TAGS
-          GROUP BY tag
-        ),
-        TagStats AS (
-          SELECT 
-            COUNT(DISTINCT tag) AS totalUniqueTags
-          FROM MEMORY_TAGS
-        )
         SELECT 
-          tc.tag, 
-          tc.frequency
-        FROM TagCounts tc, TagStats ts
-        ORDER BY tc.frequency DESC
-        LIMIT (ts.totalUniqueTags * 0.1)
+          tag, 
+          COUNT(*) AS frequency
+        FROM MEMORY_TAGS
+        GROUP BY tag
+        ORDER BY frequency DESC
+        LIMIT 10
       `;
       
       const tags = await db.all(query);
@@ -177,10 +178,27 @@ export class MemoryResources {
     try {
       const db = await this.getDatabase();
       
-      // Query to get essential priority memories based on graph metrics
+      // First check if there are any memories
+      const countQuery = `SELECT COUNT(*) as count FROM MEMORY_NODES`;
+      const countResult = await db.get(countQuery);
+      
+      if (countResult.count === 0) {
+        // No memories available
+        return {
+          domains: [],
+          message: "No memories available in the memory graph"
+        };
+      }
+      
+      // Simplified query to get essential priority memories
       const query = `
-        -- Calculate importance scores based on graph metrics
-        WITH MemoryScores AS (
+        -- Get domain info
+        WITH DomainInfo AS (
+          SELECT id, name, description
+          FROM DOMAINS
+        ),
+        -- Calculate importance scores for each memory
+        MemoryScores AS (
           SELECT
             m.id,
             m.domain,
@@ -192,68 +210,44 @@ export class MemoryResources {
             -- Sum of relationship strengths
             (SELECT COALESCE(SUM(strength), 0) FROM MEMORY_EDGES 
              WHERE domain = m.domain AND (source = m.id OR target = m.id)) AS strength_sum,
-            -- Count of high-value relationship types (e.g., "synthesizes", "summarizes")
+            -- Count of high-value relationship types
             (SELECT COUNT(*) FROM MEMORY_EDGES 
              WHERE domain = m.domain AND (source = m.id OR target = m.id)
-             AND type IN ('synthesizes', 'summarizes', 'relates_to')) AS key_relation_count
-          FROM MEMORY_NODES m
-        ),
-        -- Calculate final score using weighted components
-        ScoredMemories AS (
-          SELECT
-            id,
-            domain,
-            content,
-            timestamp,
-            connection_count,
-            strength_sum,
-            key_relation_count,
+             AND type IN ('synthesizes', 'summarizes', 'relates_to')) AS key_relation_count,
             -- Weighted score formula
-            (connection_count * 2) + (strength_sum * 3) + (key_relation_count * 4) AS importance_score
-          FROM MemoryScores
-        ),
-        -- Get domain info
-        DomainInfo AS (
-          SELECT id, name, description
-          FROM DOMAINS
+            (SELECT COUNT(*) FROM MEMORY_EDGES 
+             WHERE domain = m.domain AND (source = m.id OR target = m.id)) * 2 +
+            (SELECT COALESCE(SUM(strength), 0) FROM MEMORY_EDGES 
+             WHERE domain = m.domain AND (source = m.id OR target = m.id)) * 3 +
+            (SELECT COUNT(*) FROM MEMORY_EDGES 
+             WHERE domain = m.domain AND (source = m.id OR target = m.id)
+             AND type IN ('synthesizes', 'summarizes', 'relates_to')) * 4 AS importance_score
+          FROM MEMORY_NODES m
         )
-        -- Select top memories for each domain based on importance score
+        -- Select top 5 memories for each domain based on importance score
         SELECT 
-          sm.domain,
+          ms.domain,
           d.name AS domain_name,
           d.description AS domain_description,
-          sm.id,
-          sm.content,
-          sm.timestamp,
-          sm.connection_count,
-          sm.strength_sum,
-          sm.key_relation_count,
-          sm.importance_score,
-          (SELECT GROUP_CONCAT(tag, ',') FROM MEMORY_TAGS WHERE nodeId = sm.id) AS tags
-        FROM ScoredMemories sm
-        JOIN DomainInfo d ON sm.domain = d.id
-        JOIN (
-          -- Get threshold score for each domain (top 10% or at least 5 memories)
-          SELECT 
-            domain,
-            MAX(importance_score) AS max_score,
-            -- Calculate threshold as either:
-            -- 1. Score that captures top 10% of memories, or
-            -- 2. Score of the 5th highest-scored memory (whichever is higher)
-            MAX(
-              (SELECT COALESCE(MIN(importance_score), 0) FROM (
-                SELECT importance_score FROM ScoredMemories s2 
-                WHERE s2.domain = s1.domain
-                ORDER BY importance_score DESC
-                LIMIT MAX(5, (SELECT COUNT(*) / 10 FROM ScoredMemories s3 WHERE s3.domain = s1.domain))
-              )),
-              0 -- Fallback if there are fewer than 5 memories
-            ) AS threshold_score
-          FROM ScoredMemories s1
-          GROUP BY domain
-        ) domain_stats ON sm.domain = domain_stats.domain
-        WHERE sm.importance_score >= domain_stats.threshold_score
-        ORDER BY sm.domain, sm.importance_score DESC
+          ms.id,
+          ms.content,
+          ms.timestamp,
+          ms.connection_count,
+          ms.strength_sum,
+          ms.key_relation_count,
+          ms.importance_score,
+          (SELECT GROUP_CONCAT(tag, ',') FROM MEMORY_TAGS WHERE nodeId = ms.id) AS tags
+        FROM MemoryScores ms
+        JOIN DomainInfo d ON ms.domain = d.id
+        WHERE ms.id IN (
+          SELECT id FROM (
+            SELECT id, domain, importance_score,
+                   ROW_NUMBER() OVER (PARTITION BY domain ORDER BY importance_score DESC) as rank
+            FROM MemoryScores
+          ) ranked
+          WHERE rank <= 5
+        )
+        ORDER BY ms.domain, ms.importance_score DESC
       `;
       
       const memories = await db.all(query);
