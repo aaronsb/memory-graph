@@ -357,6 +357,84 @@ async function convertSqliteToJson(sqliteFile: string, jsonDir: string): Promise
 }
 
 /**
+ * Validate paths before conversion
+ */
+async function validatePaths(command: string, path1: string, path2: string): Promise<boolean> {
+  try {
+    // Check if source exists
+    if (command === 'json2sqlite') {
+      // For JSON to SQLite, check if JSON directory exists and has domains.json
+      const jsonDir = path1;
+      const domainsFile = path.join(jsonDir, 'domains.json');
+      const persistenceFile = path.join(jsonDir, 'persistence.json');
+      const memoriesDir = path.join(jsonDir, 'memories');
+      
+      if (!await fileExists(jsonDir)) {
+        console.error(`Error: JSON directory does not exist: ${jsonDir}`);
+        return false;
+      }
+      
+      if (!await fileExists(domainsFile)) {
+        console.error(`Error: domains.json not found in ${jsonDir}`);
+        return false;
+      }
+      
+      if (!await fileExists(persistenceFile)) {
+        console.error(`Error: persistence.json not found in ${jsonDir}`);
+        return false;
+      }
+      
+      if (!await fileExists(memoriesDir)) {
+        console.error(`Error: memories directory not found in ${jsonDir}`);
+        return false;
+      }
+      
+      // Check if SQLite file already exists
+      const sqliteFile = path2;
+      if (await fileExists(sqliteFile)) {
+        console.warn(`Warning: SQLite file already exists: ${sqliteFile}`);
+        console.warn('The existing database will be used and data will be merged.');
+      }
+    } else if (command === 'sqlite2json') {
+      // For SQLite to JSON, check if SQLite file exists
+      const sqliteFile = path1;
+      if (!await fileExists(sqliteFile)) {
+        console.error(`Error: SQLite file does not exist: ${sqliteFile}`);
+        return false;
+      }
+      
+      // Check if JSON directory exists and warn if it has data
+      const jsonDir = path2;
+      const domainsFile = path.join(jsonDir, 'domains.json');
+      
+      if (await fileExists(jsonDir)) {
+        if (await fileExists(domainsFile)) {
+          console.warn(`Warning: JSON data already exists in ${jsonDir}`);
+          console.warn('Existing JSON files will be overwritten.');
+        }
+      }
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error validating paths:', error);
+    return false;
+  }
+}
+
+/**
+ * Check if a file or directory exists
+ */
+async function fileExists(filePath: string): Promise<boolean> {
+  try {
+    await fs.access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Main function to handle command line arguments
  */
 async function main() {
@@ -364,16 +442,32 @@ async function main() {
   
   if (args.length < 3) {
     console.log(`
+Storage Converter for Memory Graph MCP
+=====================================
+
+This tool converts memory data between JSON and SQLite storage formats.
+
 Usage:
   To convert from JSON to SQLite:
-    node convert-storage.js json2sqlite <json-dir> <sqlite-file>
+    npx ts-node --esm scripts/convert-storage.ts json2sqlite <json-dir> <sqlite-file>
     
   To convert from SQLite to JSON:
-    node convert-storage.js sqlite2json <sqlite-file> <json-dir>
+    npx ts-node --esm scripts/convert-storage.ts sqlite2json <sqlite-file> <json-dir>
+    
+Arguments:
+  json2sqlite        Convert from JSON format to SQLite database
+  sqlite2json        Convert from SQLite database to JSON format
+  <json-dir>         Directory containing JSON data (with domains.json, persistence.json, and memories/ subdirectory)
+  <sqlite-file>      Path to SQLite database file (memory-graph.db)
     
 Examples:
-  node convert-storage.js json2sqlite /app/data /app/data/memory-graph.db
-  node convert-storage.js sqlite2json /app/data/memory-graph.db /app/data-json
+  npx ts-node --esm scripts/convert-storage.ts json2sqlite /home/user/memory-data /home/user/memory-data/memory-graph.db
+  npx ts-node --esm scripts/convert-storage.ts sqlite2json /home/user/memory-data/memory-graph.db /home/user/memory-data-json
+
+Notes:
+  - When converting to SQLite, the target directory must already exist
+  - When converting to JSON, the script will create the target directory if it doesn't exist
+  - Existing data in the target format may be overwritten
 `);
     process.exit(1);
   }
@@ -384,17 +478,51 @@ Examples:
     if (command === 'json2sqlite') {
       const jsonDir = args[1];
       const sqliteFile = args[2];
+      
+      // Validate paths
+      if (!await validatePaths(command, jsonDir, sqliteFile)) {
+        process.exit(1);
+      }
+      
+      console.log('\n=== Converting JSON to SQLite ===');
+      console.log(`Source: ${jsonDir}`);
+      console.log(`Target: ${sqliteFile}`);
+      console.log('================================\n');
+      
       await convertJsonToSqlite(jsonDir, sqliteFile);
+      
+      console.log('\n=== Conversion Complete ===');
+      console.log('You can now use the SQLite storage by setting:');
+      console.log('STORAGE_TYPE=sqlite');
+      console.log('in your MCP server configuration.');
     } else if (command === 'sqlite2json') {
       const sqliteFile = args[1];
       const jsonDir = args[2];
+      
+      // Validate paths
+      if (!await validatePaths(command, sqliteFile, jsonDir)) {
+        process.exit(1);
+      }
+      
+      console.log('\n=== Converting SQLite to JSON ===');
+      console.log(`Source: ${sqliteFile}`);
+      console.log(`Target: ${jsonDir}`);
+      console.log('=================================\n');
+      
       await convertSqliteToJson(sqliteFile, jsonDir);
+      
+      console.log('\n=== Conversion Complete ===');
+      console.log('You can now use the JSON storage by setting:');
+      console.log('STORAGE_TYPE=json');
+      console.log('in your MCP server configuration.');
     } else {
       console.error(`Unknown command: ${command}`);
+      console.error('Use either "json2sqlite" or "sqlite2json"');
       process.exit(1);
     }
   } catch (error) {
-    console.error('Conversion failed:', error);
+    console.error('\n❌ Conversion failed:');
+    console.error(error);
     process.exit(1);
   }
 }

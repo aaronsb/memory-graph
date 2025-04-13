@@ -11,7 +11,8 @@ An MCP server that provides persistent memory capabilities through a local knowl
 - Advanced content search with fuzzy matching and regex support
 - Combine multiple search strategies (content, path, tags)
 - Flexible result sorting and relevance scoring
-- Persistent storage using local file system
+- Multiple storage backends (JSON and SQLite)
+- Full-text search capabilities with SQLite storage
 
 See [Memory Architecture](docs/memoryArchitecture.md) for detailed documentation of the domain-based system and use cases from both perspectives:
 - [Use Cases (Human Perspective)](docs/humanPerspectiveUseCases.md) - How humans can teach AI to use the Memory Graph
@@ -93,6 +94,26 @@ The server can be configured using environment variables:
 - `MEMORY_FILES`: Comma-separated list of specific memory files to use
 - `LOAD_ALL_FILES`: Set to 'true' to load all JSON files in the storage directory
 - `DEFAULT_PATH`: Default path for storing memories
+- `STORAGE_TYPE`: Storage backend to use (`json` or `sqlite`, default: `json`)
+
+### Storage Options
+
+The Memory Graph MCP supports two storage backends:
+
+- **JSON**: Simple file-based storage (default)
+  - One JSON file per domain in the `memories/` directory
+  - Good for smaller datasets and simple deployments
+  - Easy to inspect and manually edit if needed
+
+- **SQLite**: Database storage with improved performance
+  - Single SQLite database file for all domains
+  - Better performance for large datasets
+  - Full-text search capabilities
+  - More efficient memory usage
+
+To switch between storage types, set the `STORAGE_TYPE` environment variable to either `json` or `sqlite` in your MCP configuration.
+
+For detailed information about storage options, including how to convert between formats, see [Storage Switching](docs/storage-switching.md).
 
 #### MCP Configuration
 
