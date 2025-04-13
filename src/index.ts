@@ -29,7 +29,7 @@ class MemoryGraphServer {
     this.memoryGraph = new MemoryGraph({
       storageDir,
       defaultPath: process.env.DEFAULT_PATH || '/',
-      storageType: process.env.STORAGE_TYPE || 'json'
+      storageType: process.env.STORAGE_TYPE || 'json',
     });
     this.memoryTools = new MemoryTools(this.memoryGraph);
 
