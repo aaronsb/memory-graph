@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# Ensure the host directory exists and has correct permissions
+# Ensure the host directory exists with correct permissions
 HOST_DATA_DIR="/tmp/memory-graph-data"
 mkdir -p "$HOST_DATA_DIR"
 # Ensure the directory is owned by the current user
