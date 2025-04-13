@@ -21,9 +21,9 @@ FROM node:20-slim
 
 WORKDIR /app
 
-# Copy package files and install production dependencies
+# Copy package files and install dependencies
 COPY package*.json ./
-RUN npm ci --production
+RUN npm ci
 
 # Copy built files from builder stage
 COPY --from=builder /app/build ./build
