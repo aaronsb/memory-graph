@@ -627,6 +627,10 @@ export class MemoryTools {
                   output += `- **${edge.type}** (strength: ${edge.strength.toFixed(2)}) from Memory ${edge.source}\n`;
                 } else if (resolutionDepth === 'standard') {
                   output += `- **${edge.type}** (strength: ${edge.strength.toFixed(2)}) from "${sourceNode.title || `Memory ${edge.source}`}"\n`;
+                  if (sourceNode.keyEntities && sourceNode.keyEntities.length > 0) {
+                    output += `  *Key concepts: ${sourceNode.keyEntities.join(', ')}*\n`;
+                  }
+                  output += `  *"${sourceNode.content}"*\n`;
                 } else if (resolutionDepth === 'detailed') {
                   output += `- **${edge.type}** (strength: ${edge.strength.toFixed(2)}) from "${sourceNode.title || `Memory ${edge.source}`}"\n`;
                   if (sourceNode.keyEntities && sourceNode.keyEntities.length > 0) {
@@ -638,7 +642,7 @@ export class MemoryTools {
                   if (sourceNode.keyEntities && sourceNode.keyEntities.length > 0) {
                     output += `  *Key concepts: ${sourceNode.keyEntities.join(', ')}*\n`;
                   }
-                  output += `  *"${sourceNode.content.substring(0, 100)}${sourceNode.content.length > 100 ? '...' : ''}"*\n`;
+                  output += `  *"${sourceNode.content}"*\n`;
                 }
                 output += `\n`;
               }
@@ -654,6 +658,10 @@ export class MemoryTools {
                   output += `- **${edge.type}** (strength: ${edge.strength.toFixed(2)}) to Memory ${edge.target}\n`;
                 } else if (resolutionDepth === 'standard') {
                   output += `- **${edge.type}** (strength: ${edge.strength.toFixed(2)}) to "${targetNode.title || `Memory ${edge.target}`}"\n`;
+                  if (targetNode.keyEntities && targetNode.keyEntities.length > 0) {
+                    output += `  *Key concepts: ${targetNode.keyEntities.join(', ')}*\n`;
+                  }
+                  output += `  *"${targetNode.content}"*\n`;
                 } else if (resolutionDepth === 'detailed') {
                   output += `- **${edge.type}** (strength: ${edge.strength.toFixed(2)}) to "${targetNode.title || `Memory ${edge.target}`}"\n`;
                   if (targetNode.keyEntities && targetNode.keyEntities.length > 0) {
@@ -665,7 +673,7 @@ export class MemoryTools {
                   if (targetNode.keyEntities && targetNode.keyEntities.length > 0) {
                     output += `  *Key concepts: ${targetNode.keyEntities.join(', ')}*\n`;
                   }
-                  output += `  *"${targetNode.content.substring(0, 100)}${targetNode.content.length > 100 ? '...' : ''}"*\n`;
+                  output += `  *"${targetNode.content}"*\n`;
                 }
                 output += `\n`;
               }
