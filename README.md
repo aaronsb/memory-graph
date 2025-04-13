@@ -31,7 +31,7 @@ npm install
 The server is available as a Docker container from GitHub Container Registry:
 
 ```bash
-docker pull ghcr.io/[owner]/memory-graph:latest
+docker pull ghcr.io/aaronsb/memory-graph:latest
 ```
 
 Replace `[owner]` with your GitHub username or organization.
