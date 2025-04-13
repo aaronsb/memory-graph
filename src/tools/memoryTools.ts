@@ -39,6 +39,12 @@ export const MEMORY_TOOLS = {
           description: 'Maximum number of nodes to return per domain',
           default: 20,
         },
+        resolutionDepth: {
+          type: 'string',
+          description: 'Level of semantic detail to include in the output',
+          enum: ['minimal', 'standard', 'detailed', 'comprehensive'],
+          default: 'standard',
+        },
       },
       required: [],
     },
@@ -509,6 +515,9 @@ export class MemoryTools {
     try {
       const result = await this.graph.traverseMemories(args);
       
+      // Format the output based on resolution depth
+      const resolutionDepth = args.resolutionDepth || 'standard'; // Default to standard
+      
       // Format the output in a narrative, hierarchical text format
       let output = '# Memory Graph Traversal\n\n';
       
@@ -516,7 +525,8 @@ export class MemoryTools {
       output += `## Context\n\n`;
       output += `- Starting Point: ${result.context.startingPoint}\n`;
       output += `- Traversal Depth: ${result.context.depth}\n`;
-      output += `- Domains Visited: ${result.context.domains.join(', ')}\n\n`;
+      output += `- Domains Visited: ${result.context.domains.join(', ')}\n`;
+      output += `- Resolution Depth: ${resolutionDepth}\n\n`;
       
       // Add nodes by domain
       const nodesByDomain = new Map<string, MemoryNode[]>();
@@ -552,16 +562,36 @@ export class MemoryTools {
         output += `## Domain: ${domain}\n\n`;
         
         for (const node of nodes) {
-          output += `### Memory ${node.id}\n\n`;
-          output += `${node.content}\n\n`;
-          
-          // Add timestamp and path
-          output += `*Created: ${new Date(node.timestamp).toLocaleString()}*\n`;
-          if (node.path) {
-            output += `*Path: ${node.path}*\n`;
+          // Format node header based on resolution depth
+          if (resolutionDepth === 'minimal') {
+            output += `### Memory ${node.id}\n\n`;
+          } else {
+            output += `### ${node.title || `Memory ${node.id}`}\n\n`;
           }
-          if (node.tags && node.tags.length > 0) {
-            output += `*Tags: ${node.tags.join(', ')}*\n`;
+          
+          // Add content based on resolution depth
+          if (resolutionDepth === 'minimal') {
+            // Just show ID
+            output += `*ID: ${node.id}*\n\n`;
+          } else if (resolutionDepth === 'standard') {
+            // Show title and content
+            output += `${node.content}\n\n`;
+            output += `*Created: ${new Date(node.timestamp).toLocaleString()}*\n`;
+          } else {
+            // Detailed or comprehensive - show everything
+            output += `${node.content}\n\n`;
+            
+            // Add metadata
+            output += `*Created: ${new Date(node.timestamp).toLocaleString()}*\n`;
+            if (node.path) {
+              output += `*Path: ${node.path}*\n`;
+            }
+            if (node.tags && node.tags.length > 0) {
+              output += `*Tags: ${node.tags.join(', ')}*\n`;
+            }
+            if (node.keyEntities && node.keyEntities.length > 0) {
+              output += `*Key concepts: ${node.keyEntities.join(', ')}*\n`;
+            }
           }
           
           // Add connections - use Sets to ensure uniqueness
@@ -589,8 +619,24 @@ export class MemoryTools {
             for (const edge of incomingEdges) {
               const sourceNode = result.nodes.find(n => n.id === edge.source);
               if (sourceNode) {
-                output += `- **${edge.type}** (strength: ${edge.strength.toFixed(2)}) from Memory ${edge.source}\n`;
-                output += `  *"${sourceNode.content.substring(0, 100)}${sourceNode.content.length > 100 ? '...' : ''}"*\n\n`;
+                if (resolutionDepth === 'minimal') {
+                  output += `- **${edge.type}** (strength: ${edge.strength.toFixed(2)}) from Memory ${edge.source}\n`;
+                } else if (resolutionDepth === 'standard') {
+                  output += `- **${edge.type}** (strength: ${edge.strength.toFixed(2)}) from "${sourceNode.title || `Memory ${edge.source}`}"\n`;
+                } else if (resolutionDepth === 'detailed') {
+                  output += `- **${edge.type}** (strength: ${edge.strength.toFixed(2)}) from "${sourceNode.title || `Memory ${edge.source}`}"\n`;
+                  if (sourceNode.keyEntities && sourceNode.keyEntities.length > 0) {
+                    output += `  *Key concepts: ${sourceNode.keyEntities.join(', ')}*\n`;
+                  }
+                } else {
+                  // Comprehensive
+                  output += `- **${edge.type}** (strength: ${edge.strength.toFixed(2)}) from "${sourceNode.title || `Memory ${edge.source}`}" [${edge.source}]\n`;
+                  if (sourceNode.keyEntities && sourceNode.keyEntities.length > 0) {
+                    output += `  *Key concepts: ${sourceNode.keyEntities.join(', ')}*\n`;
+                  }
+                  output += `  *"${sourceNode.content.substring(0, 100)}${sourceNode.content.length > 100 ? '...' : ''}"*\n`;
+                }
+                output += `\n`;
               }
             }
           }
@@ -600,8 +646,24 @@ export class MemoryTools {
             for (const edge of outgoingEdges) {
               const targetNode = result.nodes.find(n => n.id === edge.target);
               if (targetNode) {
-                output += `- **${edge.type}** (strength: ${edge.strength.toFixed(2)}) to Memory ${edge.target}\n`;
-                output += `  *"${targetNode.content.substring(0, 100)}${targetNode.content.length > 100 ? '...' : ''}"*\n\n`;
+                if (resolutionDepth === 'minimal') {
+                  output += `- **${edge.type}** (strength: ${edge.strength.toFixed(2)}) to Memory ${edge.target}\n`;
+                } else if (resolutionDepth === 'standard') {
+                  output += `- **${edge.type}** (strength: ${edge.strength.toFixed(2)}) to "${targetNode.title || `Memory ${edge.target}`}"\n`;
+                } else if (resolutionDepth === 'detailed') {
+                  output += `- **${edge.type}** (strength: ${edge.strength.toFixed(2)}) to "${targetNode.title || `Memory ${edge.target}`}"\n`;
+                  if (targetNode.keyEntities && targetNode.keyEntities.length > 0) {
+                    output += `  *Key concepts: ${targetNode.keyEntities.join(', ')}*\n`;
+                  }
+                } else {
+                  // Comprehensive
+                  output += `- **${edge.type}** (strength: ${edge.strength.toFixed(2)}) to "${targetNode.title || `Memory ${edge.target}`}" [${edge.target}]\n`;
+                  if (targetNode.keyEntities && targetNode.keyEntities.length > 0) {
+                    output += `  *Key concepts: ${targetNode.keyEntities.join(', ')}*\n`;
+                  }
+                  output += `  *"${targetNode.content.substring(0, 100)}${targetNode.content.length > 100 ? '...' : ''}"*\n`;
+                }
+                output += `\n`;
               }
             }
           }

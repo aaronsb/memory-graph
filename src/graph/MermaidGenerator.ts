@@ -307,7 +307,8 @@ export class MermaidGenerator {
   }
 
   private formatNodeContent(node: MemoryNode, format?: MermaidContentFormat): string {
-    let content = node.content;
+    // Use title if available, otherwise use content
+    let content = node.title || node.content;
 
     // Add optional metadata
     const parts: string[] = [];
