@@ -4,14 +4,18 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import {
   CallToolRequestSchema,
   ErrorCode,
+  ListResourcesRequestSchema,
+  ListResourceTemplatesRequestSchema,
   ListToolsRequestSchema,
   McpError,
+  ReadResourceRequestSchema,
   ServerResult,
 } from '@modelcontextprotocol/sdk/types.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { MemoryGraph } from './graph/MemoryGraph.js';
 import { MEMORY_TOOLS, MemoryTools } from './tools/memoryTools.js';
+import { MemoryResources } from './resources/memoryResources.js';
 import { StoreMemoryInput, RecallMemoriesInput, ForgetMemoryInput } from './types/graph.js';
 import { ToolName, ToolRequest, ToolResponse } from './types/mcp.js';
 
@@ -25,6 +29,7 @@ class MemoryGraphServer {
   private server: Server;
   private memoryGraph: MemoryGraph;
   private memoryTools: MemoryTools;
+  private memoryResources: MemoryResources;
   private config: MemoryGraphServerConfig;
 
   constructor(config: MemoryGraphServerConfig = {}) {
@@ -47,6 +52,7 @@ class MemoryGraphServer {
       storageType: storageType,
     });
     this.memoryTools = new MemoryTools(this.memoryGraph);
+    this.memoryResources = new MemoryResources(this.memoryGraph);
 
     // Initialize MCP server
     this.server = new Server(
@@ -57,6 +63,7 @@ class MemoryGraphServer {
       {
         capabilities: {
           tools: {},
+          resources: {}, // Add resources capability
         },
       }
     );
@@ -87,6 +94,86 @@ class MemoryGraphServer {
         throw new McpError(
           ErrorCode.InternalError,
           `Failed to handle tool call: ${error}`
+        );
+      }
+    });
+
+    // List available resources
+    this.server.setRequestHandler(ListResourcesRequestSchema, async () => ({
+      resources: [
+        {
+          uri: 'memory://domains/statistics',
+          name: 'Domain Statistics',
+          description: 'Statistics about memory domains',
+          mimeType: 'application/json',
+        },
+        {
+          uri: 'memory://edges/filter-terms',
+          name: 'Memory Edge Filter Terms',
+          description: 'Available relationship types for filtering memory edges',
+          mimeType: 'application/json',
+        },
+        {
+          uri: 'memory://tags/popular',
+          name: 'Popular Memory Tags',
+          description: 'Most frequently used memory tags (top 10%)',
+          mimeType: 'application/json',
+        },
+        {
+          uri: 'essential_priority://domains',
+          name: 'Essential Domain Memories',
+          description: 'Top-level memories that provide essential context for each domain',
+          mimeType: 'application/json',
+        },
+      ],
+    }));
+
+    // List resource templates
+    this.server.setRequestHandler(ListResourceTemplatesRequestSchema, async () => ({
+      resourceTemplates: [],
+    }));
+
+    // Read resource contents
+    this.server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+      try {
+        const uri = request.params.uri;
+        let content: string;
+
+        if (uri === 'memory://domains/statistics') {
+          const data = await this.memoryResources.getDomainStatistics();
+          content = JSON.stringify(data, null, 2);
+        } else if (uri === 'memory://edges/filter-terms') {
+          const data = await this.memoryResources.getEdgeFilterTerms();
+          content = JSON.stringify(data, null, 2);
+        } else if (uri === 'memory://tags/popular') {
+          const data = await this.memoryResources.getPopularTags();
+          content = JSON.stringify(data, null, 2);
+        } else if (uri === 'essential_priority://domains') {
+          const data = await this.memoryResources.getEssentialPriorityMemories();
+          content = JSON.stringify(data, null, 2);
+        } else {
+          throw new McpError(
+            ErrorCode.InvalidRequest,
+            `Unknown resource URI: ${uri}`
+          );
+        }
+
+        return {
+          contents: [
+            {
+              uri,
+              mimeType: 'application/json',
+              text: content,
+            },
+          ],
+        };
+      } catch (error) {
+        if (error instanceof McpError) {
+          throw error;
+        }
+        throw new McpError(
+          ErrorCode.InternalError,
+          `Failed to read resource: ${error}`
         );
       }
     });
