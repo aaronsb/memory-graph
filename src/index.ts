@@ -17,16 +17,29 @@ import { ToolName, ToolRequest, ToolResponse } from './types/mcp.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+interface MemoryGraphServerConfig {
+  strictMode?: boolean;
+}
+
 class MemoryGraphServer {
   private server: Server;
   private memoryGraph: MemoryGraph;
   private memoryTools: MemoryTools;
+  private config: MemoryGraphServerConfig;
 
-  constructor() {
+  constructor(config: MemoryGraphServerConfig = {}) {
+    this.config = config;
+    
     // Initialize memory graph
     const storageDir = process.env.MEMORY_DIR || path.join(__dirname, '../data');
     const storageType = process.env.STORAGE_TYPE || 'json';
-    console.log(`STORAGE_TYPE: ${storageType}`);
+    
+    // In strict mode, all informational logging goes to stderr
+    if (this.config.strictMode) {
+      console.error(`STORAGE_TYPE: ${storageType}`);
+    } else {
+      console.log(`STORAGE_TYPE: ${storageType}`);
+    }
 
     this.memoryGraph = new MemoryGraph({
       storageDir,
@@ -108,5 +121,9 @@ class MemoryGraphServer {
 }
 
 // Start server
-const server = new MemoryGraphServer();
-server.start().catch(console.error);
+const strictMode = process.env.STRICT_MODE === 'true';
+const server = new MemoryGraphServer({ strictMode });
+server.start().catch((error) => {
+  console.error('Failed to start server:', error);
+  process.exit(1);
+});

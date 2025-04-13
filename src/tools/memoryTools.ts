@@ -564,9 +564,25 @@ export class MemoryTools {
             output += `*Tags: ${node.tags.join(', ')}*\n`;
           }
           
-          // Add connections
-          const incomingEdges = result.edges.filter(e => e.target === node.id);
-          const outgoingEdges = result.edges.filter(e => e.source === node.id);
+          // Add connections - use Sets to ensure uniqueness
+          const incomingEdgeSet = new Set(result.edges
+            .filter(e => e.target === node.id)
+            .map(e => `${e.source}-${e.target}-${e.type}`));
+          
+          const outgoingEdgeSet = new Set(result.edges
+            .filter(e => e.source === node.id)
+            .map(e => `${e.source}-${e.target}-${e.type}`));
+          
+          // Convert back to edges, ensuring no duplicates
+          const incomingEdges = result.edges
+            .filter(e => e.target === node.id && incomingEdgeSet.has(`${e.source}-${e.target}-${e.type}`))
+            .filter((e, i, arr) => arr.findIndex(a => 
+              a.source === e.source && a.target === e.target && a.type === e.type) === i);
+          
+          const outgoingEdges = result.edges
+            .filter(e => e.source === node.id && outgoingEdgeSet.has(`${e.source}-${e.target}-${e.type}`))
+            .filter((e, i, arr) => arr.findIndex(a => 
+              a.source === e.source && a.target === e.target && a.type === e.type) === i);
           
           if (incomingEdges.length > 0) {
             output += `\n#### Incoming Connections\n\n`;

@@ -67,6 +67,7 @@ To use the Docker container with Claude, update your MCP configuration:
         "-v", "/path/to/data:/app/data",
         "-e", "MEMORY_DIR=/app/data",
         "-e", "STORAGE_TYPE=sqlite",
+        "-e", "STRICT_MODE=true",
         "ghcr.io/[owner]/memory-graph:latest"
       ],
       "disabled": false,
@@ -95,6 +96,7 @@ The server can be configured using environment variables:
 - `LOAD_ALL_FILES`: Set to 'true' to load all JSON files in the storage directory
 - `DEFAULT_PATH`: Default path for storing memories
 - `STORAGE_TYPE`: Storage backend to use (`json` or `sqlite`, default: `json`)
+- `STRICT_MODE`: Set to 'true' to ensure all logging goes to stderr, preventing interference with JSON-RPC communication on stdout. See [Strict Mode](docs/strict-mode.md) for details.
 
 ### Storage Options
 
@@ -129,7 +131,8 @@ To use this server with Claude, add it to your MCP configuration file (e.g. `cla
         "MEMORY_DIR": "/path/to/memory/storage",
         "LOAD_ALL_FILES": "true",
         "DEFAULT_PATH": "/memories",
-        "STORAGE_TYPE": "sqlite"
+        "STORAGE_TYPE": "sqlite",
+        "STRICT_MODE": "true"
       },
       "disabled": false,
       "autoApprove": []

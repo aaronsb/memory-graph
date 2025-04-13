@@ -190,6 +190,7 @@ export class MemoryGraph {
       
       return sortedNodes[0].id;
     } catch (error) {
+      // Always use console.error for logging to ensure it goes to stderr
       console.error(`Error finding entry point in domain ${domainId}:`, error);
       return null;
     } finally {
@@ -212,6 +213,7 @@ export class MemoryGraph {
   ): Promise<DomainRef | null> {
     // Validate target domain exists
     if (!this.domains.has(targetDomain)) {
+      // Always use console.error for logging to ensure it goes to stderr
       console.error(`Target domain does not exist: ${targetDomain}`);
       return null;
     }
@@ -221,6 +223,7 @@ export class MemoryGraph {
     if (!entryPointId) {
       const foundEntryPoint = await this.findDomainEntryPoint(targetDomain);
       if (!foundEntryPoint) {
+        // Always use console.error for logging to ensure it goes to stderr
         console.error(`Could not find entry point in domain: ${targetDomain}`);
         return null;
       }
@@ -271,6 +274,7 @@ export class MemoryGraph {
             }
           }
         } catch (error) {
+          // Always use console.error for logging to ensure it goes to stderr
           console.error(`Error creating bidirectional reference:`, error);
         } finally {
           // Switch back to original domain

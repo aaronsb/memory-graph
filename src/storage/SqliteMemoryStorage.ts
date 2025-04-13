@@ -350,31 +350,31 @@ export class SqliteMemoryStorage implements MemoryStorage {
           [node.id, domain, node.content, node.timestamp, node.path || '/']
         );
         
-        // Insert tags
+        // Insert tags - use INSERT OR IGNORE to handle duplicate tags
         if (node.tags && node.tags.length > 0) {
           for (const tag of node.tags) {
             await db.run(
-              'INSERT INTO MEMORY_TAGS (nodeId, tag) VALUES (?, ?)',
+              'INSERT OR IGNORE INTO MEMORY_TAGS (nodeId, tag) VALUES (?, ?)',
               [node.id, tag]
             );
           }
         }
         
-        // Insert domain refs
+        // Insert domain refs - use INSERT OR IGNORE to handle duplicate domain references
         if (node.domainRefs && node.domainRefs.length > 0) {
           for (const ref of node.domainRefs) {
             await db.run(
-              'INSERT INTO DOMAIN_REFS (nodeId, domain, targetDomain, targetNodeId, description, bidirectional) VALUES (?, ?, ?, ?, ?, ?)',
+              'INSERT OR IGNORE INTO DOMAIN_REFS (nodeId, domain, targetDomain, targetNodeId, description, bidirectional) VALUES (?, ?, ?, ?, ?, ?)',
               [node.id, domain, ref.domain, ref.nodeId, ref.description || null, ref.bidirectional ? 1 : 0]
             );
           }
         }
       }
       
-      // Insert edges
+      // Insert edges - use INSERT OR REPLACE to handle duplicate edges while preserving updated values
       for (const edge of edges) {
         await db.run(
-          'INSERT INTO MEMORY_EDGES (id, source, target, type, strength, timestamp, domain) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          'INSERT OR REPLACE INTO MEMORY_EDGES (id, source, target, type, strength, timestamp, domain) VALUES (?, ?, ?, ?, ?, ?, ?)',
           [edge.source + '-' + edge.target + '-' + edge.type, edge.source, edge.target, edge.type, edge.strength, edge.timestamp, domain]
         );
       }
