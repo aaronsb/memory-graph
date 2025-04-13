@@ -41,7 +41,7 @@ export const MEMORY_TOOLS = {
         },
         resolutionDepth: {
           type: 'string',
-          description: 'Level of semantic detail to include in the output',
+          description: 'Level of semantic detail to include in the output. Strongly recommended to use "standard" mode for most operations as it provides the best balance of detail and efficiency. Use "minimal" only for quick ID-based lookups, "detailed" for additional metadata, and "comprehensive" primarily for debugging orphaned or incorrectly associated memories.',
           enum: ['minimal', 'standard', 'detailed', 'comprehensive'],
           default: 'standard',
         },
