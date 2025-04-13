@@ -25,11 +25,13 @@ class MemoryGraphServer {
   constructor() {
     // Initialize memory graph
     const storageDir = process.env.MEMORY_DIR || path.join(__dirname, '../data');
-    
+    const storageType = process.env.STORAGE_TYPE || 'json';
+    console.log(`STORAGE_TYPE: ${storageType}`);
+
     this.memoryGraph = new MemoryGraph({
       storageDir,
       defaultPath: process.env.DEFAULT_PATH || '/',
-      storageType: process.env.STORAGE_TYPE || 'json',
+      storageType: storageType,
     });
     this.memoryTools = new MemoryTools(this.memoryGraph);
 
