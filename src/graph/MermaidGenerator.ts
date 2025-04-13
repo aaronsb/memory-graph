@@ -307,7 +307,8 @@ export class MermaidGenerator {
   }
 
   private formatNodeContent(node: MemoryNode, format?: MermaidContentFormat): string {
-    // Use title if available, otherwise use content
+    // Get content for the node label
+    // For Mermaid graphs, we always want to truncate for readability
     let content = node.title || node.content;
 
     // Add optional metadata
@@ -317,6 +318,7 @@ export class MermaidGenerator {
       parts.push(`[${node.id}]`);
     }
     
+    // Always truncate for Mermaid graphs to keep them readable
     parts.push(this.truncateContent(content, format?.maxLength, format?.truncationSuffix));
     
     if (format?.includeTimestamp) {

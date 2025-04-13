@@ -564,9 +564,13 @@ export class MemoryTools {
         for (const node of nodes) {
           // Format node header based on resolution depth
           if (resolutionDepth === 'minimal') {
-            output += `### Memory ${node.id}\n\n`;
-          } else {
+            // For minimal, show truncated title or just ID
             output += `### ${node.title || `Memory ${node.id}`}\n\n`;
+          } else {
+            // For other modes, show full title without truncation
+            // Use the first sentence or up to 80 chars of content if no title
+            const fullTitle = node.content.split('.')[0].trim();
+            output += `### ${fullTitle || `Memory ${node.id}`}\n\n`;
           }
           
           // Add content based on resolution depth
