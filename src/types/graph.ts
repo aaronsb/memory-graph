@@ -33,6 +33,8 @@ export interface MemoryNode {
   path?: string;
   tags?: string[];
   domainRefs?: DomainRef[];
+  title?: string;           // Short descriptive title
+  keyEntities?: string[];   // Extracted key entities/concepts
 }
 
 export interface GraphEdge {
@@ -64,6 +66,8 @@ export interface StoreMemoryInput {
   };
   domainRefs?: DomainRef[];
   domainPointer?: DomainPointer;
+  title?: string;           // Optional title for the memory
+  keyEntities?: string[];   // Optional key entities/concepts
 }
 
 export type RecallStrategy = 'recent' | 'related' | 'path' | 'tag' | 'content';
@@ -132,6 +136,7 @@ export interface TraverseMemoriesInput {
   followDomainPointers?: boolean;
   targetDomain?: string;
   maxNodesPerDomain?: number;
+  resolutionDepth?: 'minimal' | 'standard' | 'detailed' | 'comprehensive';  // Level of semantic detail to include
 }
 
 export interface RecallResult {

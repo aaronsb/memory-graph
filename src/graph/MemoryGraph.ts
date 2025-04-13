@@ -44,6 +44,28 @@ export class MemoryGraph {
     return Date.now().toString(36) + Math.random().toString(36).substring(2);
   }
 
+  /**
+   * Extract key entities from content
+   * Simple implementation that extracts capitalized words and quoted phrases
+   */
+  private extractKeyEntities(content: string): string[] {
+    // Simple implementation: extract capitalized words and phrases
+    const entities = new Set<string>();
+    
+    // Match capitalized words not at the start of sentences
+    const capitalizedWords = content.match(/(?<!\.\s+)[A-Z][a-z]{2,}/g) || [];
+    
+    // Match quoted phrases
+    const quotedPhrases = content.match(/"([^"]+)"/g) || [];
+    
+    // Add all matches to the set
+    capitalizedWords.forEach(word => entities.add(word));
+    quotedPhrases.forEach(phrase => entities.add(phrase.replace(/"/g, '')));
+    
+    // Convert to array and limit to top 5
+    return Array.from(entities).slice(0, 5);
+  }
+
   async initialize(): Promise<void> {
     // Initialize storage
     await this.storage.initialize();
@@ -287,13 +309,26 @@ export class MemoryGraph {
   }
 
   async storeMemory(input: StoreMemoryInput): Promise<MemoryNode> {
+    // Generate title if not provided
+    let title = input.title;
+    if (!title) {
+      // Simple approach: use first 40 chars or first sentence
+      title = input.content.split('.')[0].substring(0, 40).trim();
+      if (title.length === 40) title += '...';
+    }
+    
+    // Extract key entities if not provided
+    const keyEntities = input.keyEntities || this.extractKeyEntities(input.content);
+    
     const node: MemoryNode = {
       id: this.generateId(),
       content: input.content,
       timestamp: new Date().toISOString(),
       path: input.path || this.config.defaultPath || '/',
       tags: input.tags,
-      domainRefs: input.domainRefs ? [...input.domainRefs] : undefined
+      domainRefs: input.domainRefs ? [...input.domainRefs] : undefined,
+      title,
+      keyEntities
     };
 
     // Handle domain pointer if provided
