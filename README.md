@@ -40,10 +40,23 @@ Replace `[owner]` with your GitHub username or organization.
 
 ### Docker Usage
 
-Run the container with your desired configuration:
+Run the container with your desired configuration. The server supports two transport types:
 
 ```bash
-docker run -v /path/to/data:/app/data -e MEMORY_DIR=/app/data ghcr.io/[owner]/memory-graph:latest
+# Using STDIO transport (default)
+docker run -v /path/to/data:/app/data \
+  -e MEMORY_DIR=/app/data \
+  -e TRANSPORT_TYPE=STDIO \
+  ghcr.io/[owner]/memory-graph:latest
+
+# Using HTTP transport
+docker run -v /path/to/data:/app/data \
+  -e MEMORY_DIR=/app/data \
+  -e TRANSPORT_TYPE=HTTP \
+  -e PORT=3000 \
+  -e HOST=127.0.0.1 \
+  -p 3000:3000 \
+  ghcr.io/[owner]/memory-graph:latest
 ```
 
 Environment variables and volume mounts:
@@ -69,6 +82,9 @@ To use the Docker container with Claude, update your MCP configuration:
         "-e", "MEMORY_DIR=/app/data",
         "-e", "STORAGE_TYPE=sqlite",
         "-e", "STRICT_MODE=true",
+        "-e", "TRANSPORT_TYPE=HTTP",
+        "-e", "PORT=3000",
+        "-p", "3000:3000",
         "ghcr.io/[owner]/memory-graph:latest"
       ],
       "disabled": false,
@@ -100,6 +116,9 @@ The server can be configured using environment variables:
 - `DEFAULT_PATH`: Default path for storing memories
 - `STORAGE_TYPE`: Storage backend to use (`json` or `sqlite`, default: `json`)
 - `STRICT_MODE`: Set to 'true' to ensure all logging goes to stderr, preventing interference with JSON-RPC communication on stdout. See [Strict Mode](docs/strict-mode.md) for details.
+- `TRANSPORT_TYPE`: Communication transport to use (`STDIO` or `HTTP`, default: `STDIO`)
+- `PORT`: Port number for HTTP transport (required when `TRANSPORT_TYPE=HTTP`)
+- `HOST`: Host address for HTTP transport (default: `127.0.0.1`, only used when `TRANSPORT_TYPE=HTTP`)
 
 ### Storage Options
 
