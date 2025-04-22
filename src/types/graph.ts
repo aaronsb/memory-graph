@@ -35,6 +35,8 @@ export interface MemoryNode {
   domainRefs?: DomainRef[];
   title?: string;           // Short descriptive title
   keyEntities?: string[];   // Extracted key entities/concepts
+  content_summary?: string; // Short summary of the content
+  summary_timestamp?: string; // When the summary was last updated
 }
 
 export interface GraphEdge {
@@ -68,6 +70,7 @@ export interface StoreMemoryInput {
   domainPointer?: DomainPointer;
   title?: string;           // Optional title for the memory
   keyEntities?: string[];   // Optional key entities/concepts
+  summary?: string;         // Optional summary of the content
 }
 
 export type RecallStrategy = 'recent' | 'related' | 'path' | 'tag' | 'content';
@@ -106,6 +109,7 @@ export interface EditMemoryInput {
   relationships?: {
     [type: string]: Relationship[];
   };
+  summary?: string;  // Optional summary of the content
 }
 
 export interface ForgetMemoryInput {

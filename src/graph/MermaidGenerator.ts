@@ -321,6 +321,11 @@ export class MermaidGenerator {
     // Always truncate for Mermaid graphs to keep them readable
     parts.push(this.truncateContent(content, format?.maxLength, format?.truncationSuffix));
     
+    // Add summary if available
+    if (node.content_summary) {
+      parts.push(`\nSummary: ${this.truncateContent(node.content_summary, format?.maxLength, format?.truncationSuffix)}`);
+    }
+    
     if (format?.includeTimestamp) {
       // Parse the UTC timestamp
       const utcDate = new Date(node.timestamp);
@@ -348,6 +353,18 @@ export class MermaidGenerator {
       const dateStr = dateFormatter.format(cstDate);
       const timeStr = timeFormatter.format(cstDate);
       parts.push(`(${dateStr} ${timeStr})`);
+      
+      // Add summary timestamp if available and different from content timestamp
+      if (node.content_summary && node.summary_timestamp && node.summary_timestamp !== node.timestamp) {
+        const summaryUtcDate = new Date(node.summary_timestamp);
+        const summaryCstDate = new Date(summaryUtcDate);
+        summaryCstDate.setUTCHours(summaryUtcDate.getUTCHours() - 6);
+        summaryCstDate.setHours(12, 0, 0);
+        
+        const summaryDateStr = dateFormatter.format(summaryCstDate);
+        const summaryTimeStr = timeFormatter.format(summaryCstDate);
+        parts.push(`(Summary: ${summaryDateStr} ${summaryTimeStr})`);
+      }
     }
 
     return parts.join(' ');
