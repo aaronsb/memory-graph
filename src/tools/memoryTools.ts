@@ -126,7 +126,9 @@ export const MEMORY_TOOLS = {
     description: `Store a new memory in the knowledge graph.
 During dreaming: Create at most 1-2 new synthesized memories per dreaming session.
 Focus only on clear, significant patterns that emerge across multiple memories.
-Avoid creating abstract memories that don't add concrete value.`,
+Avoid creating abstract memories that don't add concrete value.
+
+The summary should be a short sentence that captures the essence of the memory content.`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -142,6 +144,10 @@ Avoid creating abstract memories that don't add concrete value.`,
           type: 'array',
           items: { type: 'string' },
           description: 'Optional categorization tags',
+        },
+        summary: {
+          type: 'string',
+          description: 'Optional short summary of the content (should be a single sentence)',
         },
         relationships: {
           type: 'object',
@@ -264,7 +270,10 @@ in the connections. Stay focused on the core topic being dreamed about.`,
     description: `Edit an existing memory in the knowledge graph.
 During dreaming: Limit edits to 2-3 memories per session. Focus on obvious
 consolidation opportunities where memories are clearly redundant. Don't over-edit
-or try to force connections - memories can retain their unique perspectives.`,
+or try to force connections - memories can retain their unique perspectives.
+
+When editing a memory's content, you should also reconsider its summary to ensure it still accurately
+represents the updated content. The summary should be a short sentence that captures the essence of the memory.`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -275,6 +284,10 @@ or try to force connections - memories can retain their unique perspectives.`,
         content: {
           type: 'string',
           description: 'New content for the memory',
+        },
+        summary: {
+          type: 'string',
+          description: 'New summary for the memory (should be a single sentence)',
         },
         relationships: {
           type: 'object',
@@ -480,8 +493,19 @@ export class MemoryTools {
           output += `## Memory ${i+1}: ${node.id}\n\n`;
           output += `${node.content}\n\n`;
           
+          // Add summary if available
+          if (node.content_summary) {
+            output += `**Summary:** ${node.content_summary}\n\n`;
+          }
+          
           // Add metadata
           output += `*Created: ${new Date(node.timestamp).toLocaleString()}*\n`;
+          
+          // Add summary timestamp if available and different from content timestamp
+          if (node.content_summary && node.summary_timestamp && node.summary_timestamp !== node.timestamp) {
+            output += `*Summary updated: ${new Date(node.summary_timestamp).toLocaleString()}*\n`;
+          }
+          
           if (node.path) {
             output += `*Path: ${node.path}*\n`;
           }
@@ -580,13 +604,35 @@ export class MemoryTools {
           } else if (resolutionDepth === 'standard') {
             // Show title and content
             output += `${node.content}\n\n`;
+            
+            // Add summary if available
+            if (node.content_summary) {
+              output += `**Summary:** ${node.content_summary}\n\n`;
+            }
+            
             output += `*Created: ${new Date(node.timestamp).toLocaleString()}*\n`;
+            
+            // Add summary timestamp if available and different from content timestamp
+            if (node.content_summary && node.summary_timestamp && node.summary_timestamp !== node.timestamp) {
+              output += `*Summary updated: ${new Date(node.summary_timestamp).toLocaleString()}*\n`;
+            }
           } else {
             // Detailed or comprehensive - show everything
             output += `${node.content}\n\n`;
             
+            // Add summary if available
+            if (node.content_summary) {
+              output += `**Summary:** ${node.content_summary}\n\n`;
+            }
+            
             // Add metadata
             output += `*Created: ${new Date(node.timestamp).toLocaleString()}*\n`;
+            
+            // Add summary timestamp if available and different from content timestamp
+            if (node.content_summary && node.summary_timestamp && node.summary_timestamp !== node.timestamp) {
+              output += `*Summary updated: ${new Date(node.summary_timestamp).toLocaleString()}*\n`;
+            }
+            
             if (node.path) {
               output += `*Path: ${node.path}*\n`;
             }

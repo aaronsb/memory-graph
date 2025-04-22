@@ -320,16 +320,25 @@ export class MemoryGraph {
     // Extract key entities if not provided
     const keyEntities = input.keyEntities || this.extractKeyEntities(input.content);
     
+    // Current timestamp for both content and summary (if provided)
+    const currentTimestamp = new Date().toISOString();
+    
     const node: MemoryNode = {
       id: this.generateId(),
       content: input.content,
-      timestamp: new Date().toISOString(),
+      timestamp: currentTimestamp,
       path: input.path || this.config.defaultPath || '/',
       tags: input.tags,
       domainRefs: input.domainRefs ? [...input.domainRefs] : undefined,
       title,
       keyEntities
     };
+    
+    // Add summary if provided
+    if (input.summary) {
+      node.content_summary = input.summary;
+      node.summary_timestamp = currentTimestamp;
+    }
 
     // Handle domain pointer if provided
     if (input.domainPointer) {
@@ -724,9 +733,23 @@ export class MemoryGraph {
       throw new Error(`Memory not found: ${input.id}`);
     }
 
+    const currentTimestamp = new Date().toISOString();
+
     // Update content if provided
     if (input.content !== undefined) {
       node.content = input.content;
+      node.timestamp = currentTimestamp;
+      
+      // If content is updated but summary is not provided, suggest reconsidering the summary
+      if (input.summary === undefined && node.content_summary) {
+        console.log(`Content updated for memory ${input.id}. Consider updating the summary as well.`);
+      }
+    }
+    
+    // Update summary if provided
+    if (input.summary !== undefined) {
+      node.content_summary = input.summary;
+      node.summary_timestamp = currentTimestamp;
     }
 
     // Update relationships if provided
@@ -743,7 +766,7 @@ export class MemoryGraph {
               target: rel.targetId,
               type,
               strength: rel.strength,
-              timestamp: new Date().toISOString(),
+              timestamp: currentTimestamp,
             });
           }
         });

@@ -68,6 +68,8 @@ export class SqliteMemoryStorage implements MemoryStorage {
           content TEXT NOT NULL,
           timestamp TEXT NOT NULL,
           path TEXT DEFAULT '/',
+          content_summary TEXT,
+          summary_timestamp TEXT,
           FOREIGN KEY (domain) REFERENCES DOMAINS(id)
       );
 
@@ -130,6 +132,7 @@ export class SqliteMemoryStorage implements MemoryStorage {
       CREATE VIRTUAL TABLE IF NOT EXISTS memory_content_fts USING fts5(
           id,              -- Memory ID
           content,         -- Memory content
+          content_summary, -- Memory summary
           path,            -- Organization path
           tags,            -- Concatenated tags for searching
           domain,          -- Domain ID
@@ -138,8 +141,8 @@ export class SqliteMemoryStorage implements MemoryStorage {
 
       -- Triggers to keep FTS index in sync with memory nodes
       CREATE TRIGGER IF NOT EXISTS memory_nodes_ai AFTER INSERT ON MEMORY_NODES BEGIN
-          INSERT INTO memory_content_fts(id, content, path, domain)
-          VALUES (new.id, new.content, new.path, new.domain);
+          INSERT INTO memory_content_fts(id, content, content_summary, path, domain)
+          VALUES (new.id, new.content, new.content_summary, new.path, new.domain);
       END;
 
       CREATE TRIGGER IF NOT EXISTS memory_nodes_ad AFTER DELETE ON MEMORY_NODES BEGIN
@@ -148,8 +151,8 @@ export class SqliteMemoryStorage implements MemoryStorage {
 
       CREATE TRIGGER IF NOT EXISTS memory_nodes_au AFTER UPDATE ON MEMORY_NODES BEGIN
           DELETE FROM memory_content_fts WHERE id = old.id;
-          INSERT INTO memory_content_fts(id, content, path, domain)
-          VALUES (new.id, new.content, new.path, new.domain);
+          INSERT INTO memory_content_fts(id, content, content_summary, path, domain)
+          VALUES (new.id, new.content, new.content_summary, new.path, new.domain);
       END;
 
       -- Trigger to update tags in FTS when tags are added/removed
@@ -309,7 +312,9 @@ export class SqliteMemoryStorage implements MemoryStorage {
         timestamp: row.timestamp,
         path: row.path,
         tags: tags.length > 0 ? tags : undefined,
-        domainRefs: domainRefs.length > 0 ? domainRefs : undefined
+        domainRefs: domainRefs.length > 0 ? domainRefs : undefined,
+        content_summary: row.content_summary,
+        summary_timestamp: row.summary_timestamp
       });
     }
     
@@ -346,8 +351,8 @@ export class SqliteMemoryStorage implements MemoryStorage {
       // Insert nodes
       for (const node of nodes.values()) {
         await db.run(
-          'INSERT INTO MEMORY_NODES (id, domain, content, timestamp, path) VALUES (?, ?, ?, ?, ?)',
-          [node.id, domain, node.content, node.timestamp, node.path || '/']
+          'INSERT INTO MEMORY_NODES (id, domain, content, timestamp, path, content_summary, summary_timestamp) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [node.id, domain, node.content, node.timestamp, node.path || '/', node.content_summary, node.summary_timestamp]
         );
         
         // Insert tags - use INSERT OR IGNORE to handle duplicate tags
@@ -437,7 +442,9 @@ export class SqliteMemoryStorage implements MemoryStorage {
         timestamp: row.timestamp,
         path: row.path,
         tags: tags.length > 0 ? tags : undefined,
-        domainRefs: domainRefs.length > 0 ? domainRefs : undefined
+        domainRefs: domainRefs.length > 0 ? domainRefs : undefined,
+        content_summary: row.content_summary,
+        summary_timestamp: row.summary_timestamp
       });
     }
     
