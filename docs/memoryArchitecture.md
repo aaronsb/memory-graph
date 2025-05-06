@@ -116,6 +116,24 @@ sequenceDiagram
     M->>C: Return node
 ```
 
+### Memory Domain Transfer
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant M as MemoryGraph
+    participant FS as FileSystem
+
+    C->>M: editMemory({id, targetDomain})
+    M->>M: Validate targetDomain exists
+    M->>M: Remove node from source domain
+    M->>M: Save source domain state
+    M->>M: Switch to target domain
+    M->>M: Add node to target domain
+    M->>M: Save target domain state
+    M->>M: Switch back to original domain
+    M->>C: Return updated node
+```
+
 ## Usage Examples
 
 ### Creating a Domain
@@ -143,6 +161,23 @@ await graph.storeMemory({
     nodeId: workMemory.id,
     description: 'Related work project'
   }]
+});
+```
+
+### Moving Memory Between Domains
+```typescript
+// Move a memory from the current domain to the 'archives' domain
+await graph.editMemory({
+  id: 'memory123',
+  targetDomain: 'archives'
+});
+
+// Edit content and move to another domain in one operation
+await graph.editMemory({
+  id: 'memory456',
+  content: 'Updated content with new information',
+  summary: 'Updated project notes',
+  targetDomain: 'projects'
 });
 ```
 

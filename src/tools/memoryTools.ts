@@ -273,7 +273,9 @@ consolidation opportunities where memories are clearly redundant. Don't over-edi
 or try to force connections - memories can retain their unique perspectives.
 
 When editing a memory's content, you should also reconsider its summary to ensure it still accurately
-represents the updated content. The summary should be a short sentence that captures the essence of the memory.`,
+represents the updated content. The summary should be a short sentence that captures the essence of the memory.
+
+You can move a memory to a different domain by specifying the targetDomain parameter.`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -312,6 +314,10 @@ represents the updated content. The summary should be a short sentence that capt
             },
           },
         },
+        targetDomain: {
+          type: 'string',
+          description: 'Target domain to move the memory to',
+        }
       },
       required: ['id'],
     },

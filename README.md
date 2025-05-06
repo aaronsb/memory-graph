@@ -64,6 +64,7 @@ To use the Docker container with Claude, update your MCP configuration:
         "run",
         "--rm",
         "-i",
+        "--user", "1000:1000",
         "-v", "/path/to/data:/app/data",
         "-e", "MEMORY_DIR=/app/data",
         "-e", "STORAGE_TYPE=sqlite",
@@ -76,6 +77,8 @@ To use the Docker container with Claude, update your MCP configuration:
   }
 }
 ```
+
+**Important**: Replace `1000:1000` with your actual user and group IDs. You can find these by running `id -u` and `id -g` in your terminal.
 
 ### Local Usage
 
