@@ -110,6 +110,7 @@ export interface EditMemoryInput {
     [type: string]: Relationship[];
   };
   summary?: string;  // Optional summary of the content
+  targetDomain?: string; // Target domain to move the memory to
 }
 
 export interface ForgetMemoryInput {

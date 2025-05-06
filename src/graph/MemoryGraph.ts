@@ -773,7 +773,67 @@ export class MemoryGraph {
       });
     }
 
-    await this.save();
+    // Move memory to another domain if targetDomain is provided
+    if (input.targetDomain) {
+      // Verify target domain exists
+      const domains = await this.listDomains();
+      const targetDomain = domains.find(d => d.id === input.targetDomain);
+      
+      if (!targetDomain) {
+        throw new Error(`Target domain not found: ${input.targetDomain}`);
+      }
+
+      if (input.targetDomain === this.currentDomain) {
+        // No need to move if target is the current domain
+        console.log(`Memory ${input.id} already in domain ${input.targetDomain}`);
+      } else {
+        // Save current domain so we can switch back to it
+        const originalDomain = this.currentDomain;
+        
+        try {
+          // First remove the node from current domain
+          const nodeToMove = {...node}; // Create a copy of the node
+          this.nodes.delete(input.id);
+          
+          // Get any edges involving this node to move them too
+          const edgesToMove = this.edges.filter(edge => 
+            edge.source === input.id || edge.target === input.id
+          );
+          
+          // Filter out edges for this node from current domain
+          this.edges = this.edges.filter(edge => 
+            edge.source !== input.id && edge.target !== input.id
+          );
+          
+          // Save current domain state
+          await this.save();
+          
+          // Switch to target domain
+          await this.selectDomain(input.targetDomain);
+          
+          // Add node to target domain
+          this.nodes.set(input.id, nodeToMove);
+          
+          // Add edges to target domain
+          edgesToMove.forEach(edge => this.edges.push(edge));
+          
+          // Save target domain state
+          await this.save();
+          
+          // Switch back to original domain
+          await this.selectDomain(originalDomain);
+          
+          console.log(`Memory ${input.id} moved from ${originalDomain} to ${input.targetDomain}`);
+        } catch (error) {
+          console.error(`Error moving memory: ${error}`);
+          throw new Error(`Failed to move memory to ${input.targetDomain}: ${error}`);
+        }
+      }
+    } else {
+      // Just save the current state if we're not moving domains
+      await this.save();
+    }
+    
     return node;
   }
 
