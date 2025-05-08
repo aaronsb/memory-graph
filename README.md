@@ -20,13 +20,27 @@ An MCP server that provides persistent memory capabilities through a local knowl
 
 ## Documentation
 
-- [Getting Started](docs/getting-started.md) - Quick setup and basic usage guide
-- [Memory Architecture](docs/memoryArchitecture.md) - Detailed documentation of the domain-based system
-- [Use Cases](docs/use-cases.md) - Examples of how to use Memory Graph in real-world scenarios
-- [Memory Tools Reference](docs/memory-tools-reference.md) - Comprehensive reference for all memory tools
-- [Storage Options](docs/storage-switching.md) - Guide to storage backends and how to switch between them
-- [Database Schemas](docs/database-schemas.md) - Technical reference for SQLite and MariaDB schemas
-- [Strict Mode](docs/strict-mode.md) - Information about strict JSON-RPC communication
+### Getting Started
+- [Getting Started Guide](docs/guides/getting-started.md) - Quick setup and basic usage guide
+- [Use Cases](docs/guides/use-cases.md) - Examples of how to use Memory Graph in real-world scenarios
+- [Configuration](docs/guides/configuration.md) - Comprehensive configuration options
+
+### Features
+- [Storage Overview](docs/features/storage/overview.md) - Overview of storage backends
+- [Transport Overview](docs/features/transport/overview.md) - Overview of transport types
+
+### Core Concepts
+- [Memory Architecture](docs/concepts/memory-architecture.md) - Domain-based memory system
+- [Graph Model](docs/concepts/graph-model.md) - Graph data model explanation
+
+### Reference
+- [Memory Tools Reference](docs/reference/memory-tools-reference.md) - Comprehensive tool documentation
+- [Database Schemas](docs/reference/database-schemas.md) - Technical reference for database schemas
+
+### Developer Documentation
+- [Architecture](docs/development/architecture.md) - System architecture and design patterns
+- [Contributing](docs/development/contributing.md) - Contributing guidelines
+- [Testing](docs/development/testing.md) - Testing strategy
 
 ## Installation
 
@@ -245,7 +259,7 @@ The Memory Graph MCP supports three storage backends:
 
 To switch between storage types, set the `STORAGE_TYPE` environment variable to `json`, `sqlite`, or `mariadb`.
 
-For detailed information about storage options, including how to convert between formats, see [Storage Switching](docs/storage-switching.md).
+For detailed information about storage options, including how to convert between formats, see [Storage Overview](docs/features/storage/overview.md) and [Converting Between Storage Types](docs/features/storage/converting.md).
 
 ## Available Memory Tools
 
@@ -273,7 +287,7 @@ The Memory Graph MCP provides the following tools:
 - `search_memory_content`: Full-text search capabilities (with SQLite and MariaDB backends)
 - `traverse_memories`: Explore connections between memories across domains
 
-For detailed information about all tools and their parameters, see the [Memory Tools Reference](docs/memory-tools-reference.md).
+For detailed information about all tools and their parameters, see the [Memory Tools Reference](docs/reference/memory-tools-reference.md).
 
 ## Project Structure
 
