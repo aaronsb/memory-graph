@@ -71,5 +71,6 @@ export interface MemoryStorage {
  */
 export enum StorageType {
   JSON = 'json',
-  SQLITE = 'sqlite'
+  SQLITE = 'sqlite',
+  MARIADB = 'mariadb'
 }

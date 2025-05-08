@@ -33,11 +33,18 @@ export class MemoryGraph {
     this.currentDomain = config.defaultDomain || 'general';
     
     // Initialize storage based on config
-    const storageType = (config.storageType?.toLowerCase() === 'sqlite') 
-      ? StorageType.SQLITE 
-      : StorageType.JSON;
+    let storageType = StorageType.JSON;
     
-    this.storage = StorageFactory.createStorage(storageType, config.storageDir);
+    if (config.storageType) {
+      const typeValue = config.storageType.toLowerCase();
+      if (typeValue === 'sqlite') {
+        storageType = StorageType.SQLITE;
+      } else if (typeValue === 'mariadb') {
+        storageType = StorageType.MARIADB;
+      }
+    }
+    
+    this.storage = StorageFactory.createStorage(storageType, config.storageDir, config.dbConfig);
   }
 
   private generateId(): string {

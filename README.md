@@ -94,6 +94,36 @@ To use the Docker container with Claude, update your MCP configuration:
 }
 ```
 
+For MariaDB with Docker:
+
+```json
+{
+  "mcpServers": {
+    "memory-graph": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "--network=host",
+        "-v", "/path/to/data:/app/data",
+        "-e", "MEMORY_DIR=/app/data",
+        "-e", "STORAGE_TYPE=mariadb",
+        "-e", "MARIADB_HOST=localhost",
+        "-e", "MARIADB_PORT=3306",
+        "-e", "MARIADB_USER=memory_user",
+        "-e", "MARIADB_PASSWORD=secure_password",
+        "-e", "MARIADB_DATABASE=memory_graph",
+        "-e", "STRICT_MODE=true",
+        "ghcr.io/[owner]/memory-graph:latest"
+      ],
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}
+```
+
 **Important**: Replace `1000:1000` with your actual user and group IDs. You can find these by running `id -u` and `id -g` in your terminal.
 
 ### Local Usage
@@ -114,15 +144,24 @@ The server can be configured using environment variables:
 - `MEMORY_FILES`: Comma-separated list of specific memory files to use
 - `LOAD_ALL_FILES`: Set to 'true' to load all JSON files in the storage directory
 - `DEFAULT_PATH`: Default path for storing memories
-- `STORAGE_TYPE`: Storage backend to use (`json` or `sqlite`, default: `json`)
+- `STORAGE_TYPE`: Storage backend to use (`json`, `sqlite`, or `mariadb`, default: `json`)
 - `STRICT_MODE`: Set to 'true' to ensure all logging goes to stderr, preventing interference with JSON-RPC communication on stdout. See [Strict Mode](docs/strict-mode.md) for details.
 - `TRANSPORT_TYPE`: Communication transport to use (`STDIO` or `HTTP`, default: `STDIO`)
 - `PORT`: Port number for HTTP transport (required when `TRANSPORT_TYPE=HTTP`)
 - `HOST`: Host address for HTTP transport (default: `127.0.0.1`, only used when `TRANSPORT_TYPE=HTTP`)
 
+#### MariaDB Configuration (when using `STORAGE_TYPE=mariadb`)
+
+- `MARIADB_HOST`: Database server hostname (default: `localhost`)
+- `MARIADB_PORT`: Database server port (default: `3306`)
+- `MARIADB_USER`: Database username (default: `root`)
+- `MARIADB_PASSWORD`: Database password (default: empty)
+- `MARIADB_DATABASE`: Database name (default: `memory_graph`)
+- `MARIADB_CONNECTION_LIMIT`: Maximum number of connections in the pool (default: `10`)
+
 ### Storage Options
 
-The Memory Graph MCP supports two storage backends:
+The Memory Graph MCP supports three storage backends:
 
 - **JSON**: Simple file-based storage (default)
   - One JSON file per domain in the `memories/` directory
@@ -134,8 +173,16 @@ The Memory Graph MCP supports two storage backends:
   - Better performance for large datasets
   - Full-text search capabilities
   - More efficient memory usage
+  - Good for local deployments
 
-To switch between storage types, set the `STORAGE_TYPE` environment variable to either `json` or `sqlite` in your MCP configuration.
+- **MariaDB**: Production-ready database storage
+  - Uses a MariaDB/MySQL database server
+  - Ideal for large-scale deployments
+  - Full-text search capabilities
+  - Better scalability and concurrency support
+  - Suitable for deployments with high load or multiple concurrent users
+
+To switch between storage types, set the `STORAGE_TYPE` environment variable to `json`, `sqlite`, or `mariadb` in your MCP configuration.
 
 For detailed information about storage options, including how to convert between formats, see [Storage Switching](docs/storage-switching.md).
 
@@ -154,6 +201,33 @@ To use this server with Claude, add it to your MCP configuration file (e.g. `cla
         "LOAD_ALL_FILES": "true",
         "DEFAULT_PATH": "/memories",
         "STORAGE_TYPE": "sqlite",
+        "STRICT_MODE": "true"
+      },
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}
+```
+
+For MariaDB configuration:
+
+```json
+{
+  "mcpServers": {
+    "memory-graph": {
+      "command": "node",
+      "args": ["/path/to/memory-graph/build/index.js"],
+      "env": {
+        "MEMORY_DIR": "/path/to/memory/storage",
+        "DEFAULT_PATH": "/memories",
+        "STORAGE_TYPE": "mariadb",
+        "MARIADB_HOST": "localhost",
+        "MARIADB_PORT": "3306",
+        "MARIADB_USER": "memory_user",
+        "MARIADB_PASSWORD": "secure_password",
+        "MARIADB_DATABASE": "memory_graph",
+        "MARIADB_CONNECTION_LIMIT": "10",
         "STRICT_MODE": "true"
       },
       "disabled": false,
