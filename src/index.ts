@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { StreamableHTTPServerTransport } from './transport/StreamableHTTPServerTransport.js';
+import express from 'express';
+import { randomUUID } from 'crypto';
 import {
   CallToolRequestSchema,
   ErrorCode,
@@ -23,6 +26,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 interface MemoryGraphServerConfig {
   strictMode?: boolean;
+  transportType?: 'STDIO' | 'HTTP';
+  port?: number;
+  host?: string;
 }
 
 class MemoryGraphServer {
@@ -204,16 +210,74 @@ class MemoryGraphServer {
     });
   }
 
+  private async startHttpTransport() {
+    if (!this.config.port) {
+      throw new Error('PORT environment variable is required for HTTP transport');
+    }
+
+    const port = this.config.port;
+    const host = this.config.host || '127.0.0.1';
+    const app = express();
+    app.use(express.json());
+
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: () => randomUUID(),
+      eventStore: new Map(),
+    });
+
+    app.all('/mcp', async (req, res) => {
+      try {
+        await transport.handleRequest(req, res, req.body);
+      } catch (error) {
+        console.error('Error handling MCP request:', error);
+        if (!res.headersSent) {
+          res.status(500).json({
+            jsonrpc: '2.0',
+            error: { code: -32603, message: 'Internal server error' },
+            id: null,
+          });
+        }
+      }
+    });
+
+    await this.server.connect(transport);
+
+    const server = app.listen(port, host, () => {
+      console.error(`Memory Graph MCP server running on http://${host}:${port}/mcp`);
+    });
+
+    server.on('error', (error: any) => {
+      if (error.code === 'EADDRINUSE') {
+        console.error(`Port ${port} is already in use`);
+      } else {
+        console.error('HTTP server error:', error);
+      }
+      process.exit(1);
+    });
+  }
+
+  private async startStdioTransport() {
+    const transport = new StdioServerTransport();
+    await this.server.connect(transport);
+    console.error('Memory Graph MCP server running on stdio');
+  }
+
   async start() {
     try {
       // Initialize memory graph
       await this.memoryGraph.initialize();
 
-      // Connect to transport
-      const transport = new StdioServerTransport();
-      await this.server.connect(transport);
-
-      console.error('Memory Graph MCP server running on stdio');
+      // Initialize transport based on configuration
+      const transportType = this.config.transportType || 'STDIO';
+      
+      // Explicitly separate transport initialization
+      if (transportType === 'HTTP') {
+        await this.startHttpTransport();
+      } else if (transportType === 'STDIO') {
+        await this.startStdioTransport();
+      } else {
+        throw new Error(`Invalid transport type: ${transportType}`);
+      }
     } catch (error) {
       console.error('Failed to start server:', error);
       process.exit(1);
@@ -223,7 +287,22 @@ class MemoryGraphServer {
 
 // Start server
 const strictMode = process.env.STRICT_MODE === 'true';
-const server = new MemoryGraphServer({ strictMode });
+const transportType = (process.env.TRANSPORT_TYPE || 'STDIO').toUpperCase();
+const port = process.env.PORT ? parseInt(process.env.PORT) : undefined;
+const host = process.env.HOST || '127.0.0.1';
+
+// Validate transport type
+if (transportType !== 'STDIO' && transportType !== 'HTTP') {
+  console.error(`Invalid TRANSPORT_TYPE: ${transportType}. Must be either 'STDIO' or 'HTTP'`);
+  process.exit(1);
+}
+
+const server = new MemoryGraphServer({ 
+  strictMode,
+  transportType: transportType as 'STDIO' | 'HTTP',
+  port,
+  host
+});
 server.start().catch((error) => {
   console.error('Failed to start server:', error);
   process.exit(1);
