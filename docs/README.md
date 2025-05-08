@@ -4,35 +4,43 @@ Welcome to the Memory Graph MCP documentation. This directory contains detailed 
 
 ## Documentation Index
 
-### Getting Started
+### User Guides
 
-- [Getting Started Guide](getting-started.md) - Quick setup and basic usage guide
-- [Memory Architecture](memoryArchitecture.md) - Detailed documentation of the domain-based system
-- [Use Cases](use-cases.md) - Examples of how to use Memory Graph in real-world scenarios
+- [Getting Started Guide](guides/getting-started.md) - Quick setup and basic usage guide
+- [Use Cases](guides/use-cases.md) - Examples of how to use Memory Graph in real-world scenarios
+- [Configuration](guides/configuration.md) - Comprehensive configuration options
+- [Storage Options](guides/storage-switching.md) - Guide to storage backends and how to switch between them
+
+### Core Concepts
+
+- [Memory Architecture](concepts/memory-architecture.md) - Detailed documentation of the domain-based system
+- [Graph Model](concepts/graph-model.md) - Explanation of the graph data model
+- [Transport Types](concepts/transport-types.md) - Details on STDIO and HTTP transport options
 
 ### Reference Documentation
 
-- [Memory Tools Reference](memory-tools-reference.md) - Comprehensive reference for all memory tools
-- [Storage Options](storage-switching.md) - Guide to storage backends and how to switch between them
-- [Database Schemas](database-schemas.md) - Technical reference for SQLite and MariaDB schemas
+- [Memory Tools Reference](reference/memory-tools-reference.md) - Comprehensive reference for all memory tools
+- [Database Schemas](reference/database-schemas.md) - Technical reference for SQLite and MariaDB schemas
 
-### Technical Guides
+### Developer Documentation
 
-- [Strict Mode](strict-mode.md) - Information about strict JSON-RPC communication
-
-### Development and Planning
-
-- [Documentation Plan](documentation-plan.md) - Plan for improving and organizing documentation
+- [Architecture](development/architecture.md) - System architecture and design patterns
+- [Contributing](development/contributing.md) - Guidelines for contributing to the project
+- [Testing](development/testing.md) - Testing strategy and best practices
 
 ## Other Resources
 
 For a quick overview of the project, installation instructions, and basic usage, see the [main README](../README.md).
 
+## Documentation Plans
+
+- [Revised Documentation Plan](revised-documentation-plan.md) - Current plan for documentation structure
+
 ## Contributing to Documentation
 
 If you'd like to contribute to the Memory Graph MCP documentation, please follow these guidelines:
 
-1. Follow the [documentation plan](documentation-plan.md) for structure and organization
+1. Follow the [revised documentation plan](revised-documentation-plan.md) for structure and organization
 2. Use Markdown for all documentation
 3. Include practical examples when possible
 4. Ensure documentation is clear, concise, and accurate

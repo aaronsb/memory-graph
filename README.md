@@ -14,7 +14,7 @@ An MCP server that provides persistent memory capabilities through a local knowl
 - Advanced content search with fuzzy matching and regex support
 - Combine multiple search strategies (content, path, tags)
 - Flexible result sorting and relevance scoring
-- Memory traversal across domains and relationships
+- Graph traversal across domains and relationships
 - Mermaid graph visualization for memory connections
 - Docker and Docker Compose support
 
@@ -326,4 +326,4 @@ npx ts-node scripts/convert-storage.ts json2mariadb /path/to/json/data "mariadb:
 
 ## License
 
-ISC
+MIT
