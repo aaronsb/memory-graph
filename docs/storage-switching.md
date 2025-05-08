@@ -1,14 +1,15 @@
 # Switching Between Storage Types in Memory Graph MCP
 
-The Memory Graph MCP server supports two storage backends:
+The Memory Graph MCP server supports three storage backends:
 - **JSON**: Simple file-based storage (default)
 - **SQLite**: Database storage with improved performance and search capabilities
+- **MariaDB**: Production-ready database storage with better scalability
 
 This document explains how to switch between these storage types and how to convert existing data.
 
 ## Configuring Storage Type
 
-The storage type is controlled by the `STORAGE_TYPE` environment variable, which can be set to either `json` or `sqlite`.
+The storage type is controlled by the `STORAGE_TYPE` environment variable, which can be set to `json`, `sqlite`, or `mariadb`.
 
 ### In VSCode Cline Plugin Configuration
 
@@ -34,11 +35,11 @@ To switch storage types in the VSCode Cline plugin:
        "-v",
        "/home/aaron/Documents/memory-graph-mcp:/app/data",
        "-e", "MEMORY_DIR=/app/data",
-       "-e", "STORAGE_TYPE=sqlite",  // Change this to "json" or "sqlite"
+       "-e", "STORAGE_TYPE=sqlite",  // Change this to "json", "sqlite", or "mariadb"
        "ghcr.io/aaronsb/memory-graph:latest"
      ],
      "env": {
-       "STORAGE_TYPE": "sqlite"  // Change this to "json" or "sqlite"
+       "STORAGE_TYPE": "sqlite"  // Change this to "json", "sqlite", or "mariadb"
      },
      "transportType": "stdio"
    }
@@ -51,10 +52,24 @@ To switch storage types in the VSCode Cline plugin:
 If running the server directly with Docker:
 
 ```bash
+# For JSON or SQLite storage
 docker run --rm -i \
   -v /path/to/data:/app/data \
   -e MEMORY_DIR=/app/data \
   -e STORAGE_TYPE=sqlite \  # Change this to "json" or "sqlite"
+  ghcr.io/aaronsb/memory-graph:latest
+
+# For MariaDB storage
+docker run --rm -i \
+  -v /path/to/data:/app/data \
+  -e MEMORY_DIR=/app/data \
+  -e STORAGE_TYPE=mariadb \
+  -e MARIADB_HOST=localhost \
+  -e MARIADB_PORT=3306 \
+  -e MARIADB_USER=memory_user \
+  -e MARIADB_PASSWORD=secure_password \
+  -e MARIADB_DATABASE=memory_graph \
+  --network=host \  # To connect to MariaDB on the host
   ghcr.io/aaronsb/memory-graph:latest
 ```
 
@@ -72,7 +87,21 @@ npx ts-node --esm scripts/convert-storage.ts json2sqlite /path/to/json/data /pat
 
 # Convert from SQLite to JSON
 npx ts-node --esm scripts/convert-storage.ts sqlite2json /path/to/sqlite/file.db /path/to/json/data
+
+# Convert from JSON to MariaDB
+npx ts-node --esm scripts/convert-storage.ts json2mariadb /path/to/json/data "mariadb://user:password@localhost:3306/memory_graph"
+
+# Convert from SQLite to MariaDB
+npx ts-node --esm scripts/convert-storage.ts sqlite2mariadb /path/to/sqlite/file.db "mariadb://user:password@localhost:3306/memory_graph"
+
+# Convert from MariaDB to JSON
+npx ts-node --esm scripts/convert-storage.ts mariadb2json "mariadb://user:password@localhost:3306/memory_graph" /path/to/json/data
+
+# Convert from MariaDB to SQLite
+npx ts-node --esm scripts/convert-storage.ts mariadb2sqlite "mariadb://user:password@localhost:3306/memory_graph" /path/to/sqlite/file.db
 ```
+
+Note: The MariaDB connection string format is: `mariadb://user:password@host:port/database`
 
 ### Example Workflow
 
@@ -90,13 +119,16 @@ npx ts-node --esm scripts/convert-storage.ts json2sqlite /home/aaron/Documents/m
 
 ## Storage Type Comparison
 
-| Feature | JSON | SQLite |
-|---------|------|--------|
-| Simplicity | Simple file-based storage | Requires SQLite database |
-| Performance | Good for small datasets | Better for large datasets |
-| Search | Basic in-memory search | Full-text search capabilities |
-| Durability | File-based (one file per domain) | Single database file |
-| Backup | Easy to backup individual files | Need to backup database file |
+| Feature | JSON | SQLite | MariaDB |
+|---------|------|--------|---------|
+| Simplicity | Simple file-based storage | Requires SQLite database | Requires MariaDB server |
+| Performance | Good for small datasets | Better for large datasets | Best for large datasets and concurrent access |
+| Search | Basic in-memory search | Full-text search capabilities | Full-text search capabilities |
+| Durability | File-based (one file per domain) | Single database file | Client-server database with transaction support |
+| Backup | Easy to backup individual files | Need to backup database file | Standard database backup procedures (mysqldump) |
+| Concurrency | Limited concurrency support | Medium concurrency support | High concurrency support |
+| Scalability | Limited to single machine | Limited to single machine | Can scale across multiple servers |
+| Deployment | Simplest deployment | Simple deployment | Requires database server setup |
 
 ## Implementation Details
 
@@ -104,11 +136,30 @@ The storage implementation is abstracted through the `MemoryStorage` interface, 
 
 ```typescript
 // Initialize storage based on config
-const storageType = (config.storageType?.toLowerCase() === 'sqlite') 
-  ? StorageType.SQLITE 
-  : StorageType.JSON;
+let storageType = StorageType.JSON;
+    
+if (config.storageType) {
+  const typeValue = config.storageType.toLowerCase();
+  if (typeValue === 'sqlite') {
+    storageType = StorageType.SQLITE;
+  } else if (typeValue === 'mariadb') {
+    storageType = StorageType.MARIADB;
+  }
+}
 
-this.storage = StorageFactory.createStorage(storageType, config.storageDir);
+this.storage = StorageFactory.createStorage(storageType, config.storageDir, config.dbConfig);
+```
+
+The SQL-based implementations (SQLite and MariaDB) share common functionality through a base `DatabaseStorage` class, which simplifies the addition of new database backends.
+
+### Storage Class Hierarchy
+
+```
+MemoryStorage (interface)
+├── JsonMemoryStorage
+└── DatabaseStorage (abstract)
+    ├── SqliteMemoryStorage
+    └── MariaDbMemoryStorage
 ```
 
 This design allows for easy addition of other storage backends in the future.

@@ -51,7 +51,8 @@ export interface MemoryGraphConfig {
   storageDir: string;
   defaultPath?: string;
   defaultDomain?: string;
-  storageType?: string; // 'json' or 'sqlite'
+  storageType?: string; // 'json', 'sqlite', or 'mariadb'
+  dbConfig?: any; // Database configuration for MariaDB
 }
 
 export interface Relationship {

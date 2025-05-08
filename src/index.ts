@@ -46,10 +46,24 @@ class MemoryGraphServer {
       console.log(`STORAGE_TYPE: ${storageType}`);
     }
 
+    // Configure MariaDB options if needed
+    const dbConfig = storageType.toLowerCase() === 'mariadb' ? {
+      host: process.env.MARIADB_HOST || 'localhost',
+      user: process.env.MARIADB_USER || 'root',
+      password: process.env.MARIADB_PASSWORD || '',
+      database: process.env.MARIADB_DATABASE || 'memory_graph',
+      port: process.env.MARIADB_PORT ? parseInt(process.env.MARIADB_PORT, 10) : 3306,
+      waitForConnections: true,
+      connectionLimit: process.env.MARIADB_CONNECTION_LIMIT ? 
+        parseInt(process.env.MARIADB_CONNECTION_LIMIT, 10) : 10,
+      queueLimit: 0
+    } : undefined;
+
     this.memoryGraph = new MemoryGraph({
       storageDir,
       defaultPath: process.env.DEFAULT_PATH || '/',
       storageType: storageType,
+      dbConfig
     });
     this.memoryTools = new MemoryTools(this.memoryGraph);
     this.memoryResources = new MemoryResources(this.memoryGraph);
