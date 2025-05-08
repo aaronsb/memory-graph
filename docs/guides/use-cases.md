@@ -1,6 +1,6 @@
-# Memory Graph Use Cases (AI Perspective)
+# Memory Graph Use Cases
 
-This document provides practical examples of how to use the Memory Graph MCP server in real-world scenarios. These examples demonstrate the power and flexibility of the domain-based memory system for maintaining context and knowledge across sessions.
+This document provides practical examples of how to use the Memory Graph MCP server in real-world scenarios. These examples demonstrate both the AI implementation perspective and human usage perspective to give a complete understanding of the system's capabilities.
 
 ## Table of Contents
 
@@ -9,18 +9,15 @@ This document provides practical examples of how to use the Memory Graph MCP ser
 3. [Project Documentation](#project-documentation)
 4. [Learning and Research](#learning-and-research)
 5. [Decision Making](#decision-making)
+6. [Tips for Effective Memory Management](#tips-for-effective-memory-management)
 
 ## Documenting Development Workflows
 
 One powerful use case for the Memory Graph is documenting development workflows and processes. This example shows how to create a comprehensive knowledge base for a GitHub-based development workflow.
 
-### Example: GitHub Development Workflow
+### Implementation Approach
 
-In this example, we'll create a domain to document the standard workflow for developing features, testing changes, and submitting pull requests using GitHub.
-
-#### 1. Create a Domain
-
-First, create a dedicated domain for the GitHub workflow:
+1. **Create a Domain**
 
 ```typescript
 // Create a domain for GitHub development workflow
@@ -34,9 +31,7 @@ await memoryGraph.createDomain(
 await memoryGraph.selectDomain("github-development-workflow");
 ```
 
-#### 2. Store Step-by-Step Workflow Memories
-
-Store memories for each step in the workflow, with relationships connecting them in sequence:
+2. **Store Step-by-Step Workflow Memories**
 
 ```typescript
 // Step 1: Preparation
@@ -79,9 +74,7 @@ const step3 = await memoryGraph.storeMemory({
 // Additional steps would follow the same pattern...
 ```
 
-#### 3. Add Supporting Information
-
-Add memories with supporting information, such as tools and best practices:
+3. **Add Supporting Information**
 
 ```typescript
 // Tools and commands
@@ -138,96 +131,57 @@ const bestPractices = await memoryGraph.storeMemory({
 });
 ```
 
-#### 4. Create a Summary Memory
+### Guiding the AI
 
-Create a summary memory that synthesizes all the individual steps:
+Here's how to instruct the AI to document your GitHub workflow:
 
-```typescript
-// Summary memory
-await memoryGraph.storeMemory({
-  content: "The GitHub development workflow follows a standard pattern: (1) Understand the current state with git status, (2) Make code changes, (3) Build and test locally, (4) Create a branch and commit changes, (5) Push to remote, (6) Create a pull request, (7) Monitor CI/CD workflows, (8) Address any failures, (9) Participate in the review process, and (10) Merge the approved pull request. This workflow ensures code quality, facilitates collaboration, and maintains a stable main branch.",
-  path: "/workflow/summary",
-  tags: ["github", "workflow", "summary", "development-process"],
-  relationships: {
-    synthesizes: [
-      // References to all the step memories
-      {targetId: step1.id, strength: 0.8},
-      {targetId: step2.id, strength: 0.8},
-      {targetId: step3.id, strength: 0.8},
-      // ... additional steps
-    ],
-    relates_to: [
-      {targetId: tools.id, strength: 0.7},
-      {targetId: bestPractices.id, strength: 0.7}
-    ]
-  }
-});
-```
+1. **Setting Up the Knowledge Domain**
 
-#### 5. Visualize the Workflow
+Start by instructing the AI to create a dedicated space for your workflow:
 
-Generate a Mermaid graph to visualize the workflow:
+"I want you to remember our GitHub development workflow. Create a memory domain called 'github-development-workflow' with a description that explains it's for our standard process of developing features, testing changes, and submitting pull requests."
 
-```typescript
-// First recall the summary memory
-const memories = await memoryGraph.recallMemories({
-  maxNodes: 1,
-  strategy: "path",
-  path: "/workflow/summary"
-});
+2. **Teaching the Step-by-Step Process**
 
-// Generate a Mermaid graph starting from the summary memory
-const graph = await memoryGraph.generateMermaidGraph({
-  startNodeId: memories[0].node.id,
-  maxDepth: 2,
-  direction: "LR",
-  contentFormat: {
-    maxLength: 50,
-    truncationSuffix: "...",
-    includeTimestamp: false
-  }
-});
+Break down your workflow into clear steps and explain each one to the AI:
 
-// The resulting graph will show the relationships between all workflow steps
-```
+"Let me walk you through our GitHub workflow. First, we always check the repository state using `git status`. This helps us understand what we're starting with and avoid conflicts. Store this as the first step in our workflow."
 
-#### 6. Recall Workflow Information
+"The second step is making code changes. We focus on small, focused modifications that address a single concern. This makes our changes easier to review and reduces the risk of conflicts. Store this as step 2 and connect it to step 1."
 
-Later, you can recall information about the workflow:
+"After making changes, we always build and test locally. For our project, we use the `./scripts/build-local.sh` script, which runs linting, tests, TypeScript compilation, and builds a Docker image. This validates everything before pushing to the remote repository. Store this as step 3 and connect it to step 2."
 
-```typescript
-// Recall the entire workflow
-const workflowSteps = await memoryGraph.recallMemories({
-  maxNodes: 10,
-  strategy: "path",
-  path: "/workflow",
-  sortBy: "path"  // Sort by path to get steps in order
-});
+3. **Providing Supporting Information**
 
-// Search for specific information
-const cicdInfo = await memoryGraph.recallMemories({
-  maxNodes: 5,
-  strategy: "content",
-  search: {
-    keywords: ["CI/CD", "GitHub Actions", "workflow"]
-  }
-});
+Share additional context about tools and best practices:
 
-// Get best practices
-const practices = await memoryGraph.recallMemories({
-  maxNodes: 1,
-  strategy: "path",
-  path: "/best-practices"
-});
-```
+"Here are the key tools and commands we use in our workflow. Store this information so you can reference it when helping us: [list of commands]"
 
-This example demonstrates how the Memory Graph can be used to document complex workflows, making the information easily accessible and well-organized for future reference.
+"Also, here are our best practices that you should remind us about: [list of practices]"
+
+4. **Creating a Summary and Visualization**
+
+Help the AI synthesize this information and create a visual representation:
+
+"Now, create a summary of our GitHub workflow that connects all these steps together."
+
+"Generate a visual graph of our workflow to show how all these steps connect."
+
+### Alternative Approach: Learning by Doing
+
+For a more hands-off approach:
+
+"Hey AI, implement this feature for me using our GitHub workflow. Create a branch, make the code changes, test it, and prep a PR."
+
+After the AI has done the work, ask it to document what it learned:
+
+"Now that you've done all that work, create a memory domain called 'github-workflow-experience' and document everything you just did."
 
 ## Personal Knowledge Management
 
 The Memory Graph is an excellent tool for personal knowledge management, allowing you to build a personalized knowledge base over time.
 
-### Example: Building a Personal Learning System
+### Implementation Approach
 
 ```typescript
 // Create a domain for personal learning
@@ -266,11 +220,25 @@ await memoryGraph.storeMemory({
 });
 ```
 
+### Guiding the AI
+
+Start by establishing the domain:
+
+"I want to create a system for organizing my personal learning. Create a memory domain called 'personal-learning' for storing knowledge from books, courses, and other learning activities."
+
+Then add specific information you want the AI to remember:
+
+"I just finished reading 'Thinking, Fast and Slow' by Daniel Kahneman. The key insight I want you to remember is that there are two systems of thinking - System 1 (fast, intuitive) and System 2 (slow, deliberate). Most cognitive biases come from System 1's shortcuts. Store this under books/psychology."
+
+Help the AI make connections between different pieces of knowledge:
+
+"I've noticed a connection between cognitive biases and machine learning. Our intuitive thinking (System 1) can lead us to misinterpret model results and overlook important patterns in data. We should always use systematic evaluation methods. Create a memory that connects these two concepts."
+
 ## Project Documentation
 
 The Memory Graph can serve as a living documentation system for projects, capturing decisions, architecture, and implementation details.
 
-### Example: Software Project Documentation
+### Implementation Approach
 
 ```typescript
 // Create a domain for project documentation
@@ -302,11 +270,25 @@ await memoryGraph.storeMemory({
 });
 ```
 
+### Guiding the AI
+
+Establish the documentation domain:
+
+"Create a memory domain called 'project-docs' for storing architecture decisions, API details, and implementation notes for our project."
+
+Add key architectural decisions:
+
+"We've decided to use a microservices architecture to improve scalability and allow independent deployment of components. Each service will have its own database to ensure loose coupling. Store this under architecture/decisions."
+
+Document API endpoints:
+
+"Our User Service API has this endpoint: POST /api/users - It creates a new user and requires username, email, and password fields. It returns 201 Created on success with the user object, excluding the password. Store this under api/user-service."
+
 ## Learning and Research
 
 The Memory Graph is ideal for organizing research findings and learning materials.
 
-### Example: Research Project
+### Implementation Approach
 
 ```typescript
 // Create a domain for research
@@ -344,11 +326,23 @@ await memoryGraph.storeMemory({
 });
 ```
 
+### Guiding the AI
+
+Establish the research domain:
+
+"Create a memory domain called 'research-project' for organizing findings, papers, and insights for my current research."
+
+Add paper summaries and experimental results:
+
+"I just read 'Attention Is All You Need' by Vaswani et al. (2017). It introduced the Transformer architecture that relies entirely on attention mechanisms, eliminating recurrence and convolutions. The key innovation is the multi-head self-attention mechanism. Store this under papers/nlp."
+
+"In Experiment #3, our modified attention mechanism improved performance by 3.2% on the benchmark dataset. However, training time increased by 15%, suggesting a trade-off between accuracy and computational efficiency. Store this under experiments/attention."
+
 ## Decision Making
 
 The Memory Graph can help track decision-making processes and their outcomes over time.
 
-### Example: Product Decisions
+### Implementation Approach
 
 ```typescript
 // Create a domain for product decisions
@@ -390,4 +384,38 @@ await memoryGraph.storeMemory({
 });
 ```
 
-These examples demonstrate the versatility of the Memory Graph for various use cases. By organizing memories into domains and establishing relationships between them, you can build a rich knowledge base that preserves context and connections across different areas of interest or work.
+### Guiding the AI
+
+Establish the decision-tracking domain:
+
+"Create a memory domain called 'product-decisions' for tracking our decision-making process and outcomes for product features."
+
+Document a specific decision, implementation approach, and outcome:
+
+"We've decided to implement dark mode as a priority feature for Q2. The rationale is that user feedback shows strong demand (mentioned in 32% of feedback), competitors have added this feature, and it aligns with our accessibility goals. Store this under features/dark-mode/decision."
+
+## Tips for Effective Memory Management
+
+When using memory graph, keep these principles in mind:
+
+1. **Be explicit about connections**: Clearly state how different pieces of information relate to each other using relationships and strengths.
+
+2. **Use consistent paths**: Organize information in a logical hierarchy with consistent naming conventions (e.g., `/category/subcategory`).
+
+3. **Add meaningful tags**: Tags make it easier to find related information across different categories, so choose descriptive and consistent tags.
+
+4. **Test recall regularly**: Verify that memories can be retrieved efficiently with different search strategies (path, tag, content, related).
+
+5. **Update and refine**: As your understanding evolves, update existing memories rather than creating duplicates.
+
+6. **Create summaries**: Use the `synthesizes` relationship to create summary memories that connect related concepts.
+
+7. **Visualize relationships**: Use the `generate_mermaid_graph` tool to understand how your memories are connected.
+
+8. **Use domain references wisely**: When information relates to multiple domains, use domain references to maintain connections without duplicating content.
+
+9. **Balance structure and flexibility**: Create enough structure with paths and domains to stay organized, but remain flexible enough to adapt as knowledge evolves.
+
+10. **Leverage strength values**: Use relationship strength (0.0-1.0) to indicate the importance or confidence of connections.
+
+By following these guidelines, you can build a rich, interconnected knowledge base that enhances the AI's ability to assist you across multiple sessions and complex tasks.
