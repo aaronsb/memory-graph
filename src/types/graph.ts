@@ -45,6 +45,25 @@ export interface GraphEdge {
   type: string;
   strength: number; // 0-1 relationship strength
   timestamp: string;
+  // Optional enhanced relationship data
+  relationship?: {
+    targetId: string;
+    type: string;
+    strength: {
+      overall: number;
+      semantic: number;
+      temporal: number;
+      confidence: number;
+      usage: number;
+    };
+    isBidirectional: boolean;
+    isTransitive: boolean;
+    isInferred: boolean;
+    created: string;
+    lastUpdated: string;
+    evidence?: string[];
+    tags?: string[];
+  };
 }
 
 export interface MemoryGraphConfig {
