@@ -1,5 +1,7 @@
 # Memory Graph MCP Server
 
+Note, this is somewhat superceded by [Knowledge Graph](https://github.com/aaronsb/knowledge-graph-system) - I hope you take a chance to check it out!
+
 An MCP server that provides persistent memory capabilities through a local knowledge graph implementation. This server enables AI assistants to maintain context and information across chat sessions using a graph-based storage system.
 
 ## Features
